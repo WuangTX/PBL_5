@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking Lot Application</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .parking-header {
+            background-color: #2c3e50;  /* Darker blue */
+            color: white;
+            padding: 1.5rem 0;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .parking-table {
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .status-available {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .status-occupied {
+            color: #c0392b;
+            font-weight: bold;
+        }
+        .search-box {
+            margin-bottom: 2rem;
+        }
+        .parking-controls {
+            margin-bottom: 2rem;
+        }
+        .camera-frame {
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #f0f0f0;
+            transition: all 0.3s ease;
+        }
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            margin-bottom: 1.5rem;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+        }
+        .card-header {
+            background-color: #34495e !important;  /* Slightly lighter than header */
+            color: #ecf0f1 !important;
+            border-radius: 12px 12px 0 0 !important;
+            padding: 1rem 1.5rem;
+        }
+        .badge {
+            font-size: 0.85rem;
+            padding: 0.5em 1em;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        .btn i {
+            margin-right: 5px;
+        }
+        .btn {
+            border-radius: 8px;
+            padding: 0.5rem 1.2rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background-color: #3498db;
+            border-color: #3498db;
+            opacity: 0.9;
+        }
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+            opacity: 1;
+        }
+        .btn-success {
+            background-color: #2ecc71;
+            border-color: #2ecc71;
+        }
+        .btn-success:hover {
+            background-color: #27ae60;
+            border-color: #27ae60;
+        }
+        .search-wrapper {
+            position: relative;
+        }
+        .search-icon {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+        }
+        .search-icon-left {
+            left: 12px;
+        }
+        .search-icon-right {
+            right: 12px;
+            cursor: pointer;
+        }
+        .search-input {
+            padding-left: 35px;
+            padding-right: 35px;
+        }
+        .sidebar-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .hamburger {
+            padding: 10px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .hamburger-box {
+            position: relative;
+            display: inline-block;
+            width: 30px;
+            height: 24px;
+        }
+        
+        .hamburger-inner,
+        .hamburger-inner::before,
+        .hamburger-inner::after {
+            position: absolute;
+            width: 30px;
+            height: 2px;  /* Thinner lines */
+            background-color: rgba(255,255,255,0.85);
+            border-radius: 2px;
+            transition: all 0.3s ease-in-out;
+            left: 0;
+        }
+        
+        .hamburger-inner {
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .hamburger-inner::before {
+            content: '';
+            top: -10px;  /* Khoảng cách đều với thanh giữa */
+        }
+        
+        .hamburger-inner::after {
+            content: '';
+            bottom: -10px;  /* Khoảng cách đều với thanh giữa */
+        }
+        
+        /* Animation khi active */
+        .hamburger.active .hamburger-inner {
+            background-color: #2c3e50;
+        }
+        
+        .hamburger.active .hamburger-inner::before {
+            transform: translateY(10px) rotate(45deg);
+        }
+        
+        .hamburger.active .hamburger-inner::after {
+            transform: translateY(-10px) rotate(-45deg);
+        }
+        
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: -250px;  /* Thay đổi từ left thành right và giá trị âm */
+            width: 250px;
+            height: 100%;
+            background-color: #2c3e50;  /* Match header color */
+            color: white;
+            transition: all 0.3s;
+            z-index: 999;
+            box-shadow: -2px 0 15px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar.active {
+            right: 0; 
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .sidebar-menu li a {
+            display: block;
+            padding: 12px 20px;
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .sidebar-menu li a:hover {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        .sidebar-menu li a i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .tooltip {
+            font-size: 0.875rem;
+        }
+
+        .tooltip .tooltip-inner {
+            background-color: rgba(44, 62, 80, 0.95);
+            padding: 6px 12px;
+            border-radius: 6px;
+        }
+
+        .tooltip.bs-tooltip-left .tooltip-arrow::before {
+            border-left-color: rgba(44, 62, 80, 0.9);
+        }
+
+        /* Add smooth transitions */
+        * {
+            transition: background-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        /* Add subtle gradient to background */
+        body {
+            background-color: #f8f9fa;
+            background-image: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+            min-height: 100vh;
+        }
+
+        /* Soften text colors */
+        .text-white {
+            color: rgba(255,255,255,0.95) !important;
+        }
+    </style>
+</head>
+<body>
+    <header class="parking-header">
+        <div class="container">
+            <h1 class="text-center">Parking Lot Management System</h1>
+        </div>
+        <div class="sidebar-toggle">
+            <button class="hamburger" type="button" 
+                data-bs-toggle="tooltip" 
+                data-bs-placement="left" 
+                title="Tùy chọn">
+            <span class="hamburger-box">
+                <span class="hamburger-inner"></span>
+            </span>
+            </button>
+        </div>
+        
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h5>Menu</h5>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="#"><i class="fas fa-home"></i> Dashboard</a></li>
+                <!-- In the sidebar menu -->
+                <li><a href="{% url 'parked_cars' %}"><i class="fas fa-car"></i> Xe đang đỗ</a></li>
+                <li><a href="#"><i class="fas fa-history"></i> Lịch sử</a></li>
+                <li><a href="#"><i class="fas fa-cog"></i> Cài đặt</a></li>
+                <li><a href="#"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a></li>
+            </ul>
+        </div>
+    </header>
+    
+    <script>
+        
+        // Hamburger menu toggle
+        document.querySelector('.hamburger').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('active');
+            this.classList.toggle('active');
+        });
+    
+        // Close sidebar when clicking outside
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const hamburger = document.querySelector('.hamburger');
+            
+            if (!sidebar.contains(event.target) && !hamburger.contains(event.target) && sidebar.classList.contains('active')) {
+                sidebar.classList.remove('active');
+                hamburger.classList.remove('active');
+            }
+        });
+
+        // Khởi tạo tất cả tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    </script>
+
+    <div class="container">
+        <div class="row mb-4">
+            <!-- Camera Vào -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">Camera Vào</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="camera-frame" style="background-color: #000; height: 360px; display: flex; align-items: center; justify-content: center;">
+                            <img id="camera-entrance" src="" alt="Camera Entrance" style="max-width: 100%; max-height: 100%;">
+                        </div>
+                        <div class="mt-3 d-flex justify-content-center gap-2">
+                            <button class="btn btn-primary" id="startEntranceCamera">
+                                <i class="fas fa-play"></i> Bắt đầu
+                            </button>
+                            <button class="btn btn-success" id="captureEntranceImage">
+                                <i class="fas fa-camera"></i> Chụp ảnh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Camera Ra -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">Camera Ra</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="camera-frame" style="background-color: #000; height: 360px; display: flex; align-items: center; justify-content: center;">
+                            <img id="camera-exit" src="" alt="Camera Exit" style="max-width: 100%; max-height: 100%;">
+                        </div>
+                        <div class="mt-3 d-flex justify-content-center gap-2">
+                            <button class="btn btn-primary" id="startExitCamera">
+                                <i class="fas fa-play"></i> Bắt đầu
+                            </button>
+                            <button class="btn btn-success" id="captureExitImage">
+                                <i class="fas fa-camera"></i> Chụp ảnh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Thông tin -->
+            <div class="col-md-12 mt-4">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">Thông tin xe</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Xe vào:</h6>
+                                <div class="mb-3">
+                                    <strong>Trạng thái:</strong>
+                                    <span class="badge bg-secondary" id="entrance-status">Chờ xe</span>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Biển số xe:</strong>
+                                    <span id="entrance-plate">--</span>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Tên chủ xe:</strong>
+                                    <span id="entrance-owner">--</span>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Thời gian vào:</strong>
+                                    <span id="entrance-time">--</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Xe ra:</h6>
+                                <div class="mb-3">
+                                    <strong>Trạng thái:</strong>
+                                    <span class="badge bg-secondary" id="exit-status">Chờ xe</span>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Biển số xe:</strong>
+                                    <span id="exit-plate">--</span>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Tên chủ xe:</strong>
+                                    <span id="exit-owner">--</span>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Thời gian ra:</strong>
+                                    <span id="exit-time">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row parking-controls">
+            <div class="col-md-6">
+                <div class="search-box">
+                    <div class="search-wrapper">
+                        <i class="fas fa-search search-icon search-icon-left"></i>
+                        <input type="text" class="form-control search-input" id="searchInput" placeholder="Search parking spaces...">
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSpaceModal">
+                    Add New Space
+                </button>
+            </div>
+        </div>
+{% comment %} 
+        <div class="parking-table">
+            <table class="table table-hover" id="parkingTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th onclick="sortTable(0)">Parking Space ↕</th>
+                        <th onclick="sortTable(1)">Status ↕</th>
+                        <th onclick="sortTable(2)">Location ↕</th>
+                        <th onclick="sortTable(3)">License Plate</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Space 1</td>
+                        <td class="status-available">Available</td>
+                        <td>Level 1</td>
+                        <td>-</td>
+                        <td>
+                            <button class="btn btn-sm btn-success">Park</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Space 2</td>
+                        <td class="status-occupied">Occupied</td>
+                        <td>Level 2</td>
+                        <td>ABC-123</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger">Remove</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div> {% endcomment %}
+
+    <!-- Add Space Modal -->
+    <div class="modal fade" id="addSpaceModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Parking Space</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addSpaceForm">
+                        <div class="mb-3">
+                            <label class="form-label">Space Number</label>
+                            <input type="text" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Location</label>
+                            <select class="form-select">
+                                <option>Level 1</option>
+                                <option>Level 2</option>
+                                <option>Level 3</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" form="addSpaceForm" class="btn btn-primary">Add Space</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+
+    <script>
+        // Kết nối đến Flask WebSocket Server (cổng 5000)
+        var socket = io("http://localhost:5000");
+
+        // Xác nhận khi kết nối thành công
+        socket.on("connect", function() {
+            console.log("Connected to Flask WebSocket Server");
+        });
+
+        // Nhận dữ liệu xe vào từ Flask
+        socket.on("vehicle_info", function(data) {
+            console.log("New entrance vehicle data:", data);
+            
+            // Cập nhật thông tin xe vào
+            document.getElementById('entrance-plate').textContent = data.license_plate;
+            document.getElementById('entrance-owner').textContent = data.vehicle_owner;
+            document.getElementById('entrance-time').textContent = data.entry_time;
+            
+            // Cập nhật trạng thái xe vào
+            document.getElementById('entrance-status').textContent = 'Đã nhận diện';
+            document.getElementById('entrance-status').className = 'badge bg-success';
+        });
+
+        // Nhận dữ liệu xe ra từ Flask
+        socket.on("vehicle_exit", function(data) {
+            console.log("New exit vehicle data:", data);
+            
+            // Cập nhật thông tin xe ra 
+            document.getElementById('exit-plate').textContent = data.license_plate;
+            document.getElementById('exit-owner').textContent = data.vehicle_owner;
+            document.getElementById('exit-time').textContent = data.exit_time;
+            
+            // Cập nhật trạng thái xe ra
+            document.getElementById('exit-status').textContent = 'Đã nhận diện';
+            document.getElementById('exit-status').className = 'badge bg-success';
+        });
+
+        // Xử lý lỗi kết nối
+        socket.on("connect_error", function(error) {
+            console.log("Connection error:", error);
+            // Cập nhật trạng thái lỗi cho cả xe vào và ra
+            document.getElementById('entrance-status').textContent = 'Lỗi kết nối';
+            document.getElementById('entrance-status').className = 'badge bg-danger';
+            document.getElementById('exit-status').textContent = 'Lỗi kết nối';
+            document.getElementById('exit-status').className = 'badge bg-danger';
+        });
+
+        // Thêm event listeners cho các nút
+        document.getElementById('startEntranceCamera').addEventListener('click', function() {
+            socket.emit('start_entrance_camera');
+        });
+
+        document.getElementById('startExitCamera').addEventListener('click', function() {
+            socket.emit('start_exit_camera');
+        });
+    </script>
+
+
+</body>
+</html>
