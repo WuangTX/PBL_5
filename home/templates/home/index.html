@@ -89,6 +89,20 @@
             background-color: #27ae60;
             border-color: #27ae60;
         }
+        .btn-warning {
+            background-color: #f39c12;
+            border-color: #f39c12;
+            color: white;
+        }
+        .btn-warning:hover {
+            background-color: #d68910;
+            border-color: #d68910;
+            color: white;
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         .search-wrapper {
             position: relative;
         }
@@ -118,10 +132,14 @@
         
         .hamburger {
             padding: 10px;
-            background: transparent;
+            background:rgb(54, 77, 100);
             border: none;
+            border-radius: 4px;
             cursor: pointer;
             transition: all 0.3s;
+        }
+        .hamburger.active {
+            background: transparent;
         }
         
         .hamburger-box {
@@ -160,7 +178,7 @@
         
         /* Animation khi active */
         .hamburger.active .hamburger-inner {
-            background-color: #2c3e50;
+            background-color: transparent;
         }
         
         .hamburger.active .hamburger-inner::before {
@@ -272,8 +290,8 @@
                 <h5>Menu</h5>
             </div>
             <ul class="sidebar-menu">
-                <li><a href="#"><i class="fas fa-home"></i> Dashboard</a></li>
-                <!-- In the sidebar menu -->
+                <li><a href=""><i class="fas fa-home"></i> Dashboard</a></li>
+                <li><a href="{% url 'add_vehicle' %}"><i class="fas fa-plus-square"></i> Thêm chỗ đỗ mới</a></li>
                 <li><a href="{% url 'parked_cars' %}"><i class="fas fa-car"></i> Xe đang đỗ</a></li>
                 <li><a href="#"><i class="fas fa-history"></i> Lịch sử</a></li>
                 <li><a href="#"><i class="fas fa-cog"></i> Cài đặt</a></li>
@@ -318,7 +336,7 @@
                     </div>
                     <div class="card-body">
                         <div class="camera-frame" style="background-color: #000; height: 360px; display: flex; align-items: center; justify-content: center;">
-                            <img id="camera-entrance" src="" alt="Camera Entrance" style="max-width: 100%; max-height: 100%;">
+                            <img id="camera-entrance" src="http://127.0.0.1:5000/video_feed" alt="Camera Entrance" style="max-width: 100%; max-height: 100%;">
                         </div>
                         <div class="mt-3 d-flex justify-content-center gap-2">
                             <button class="btn btn-primary" id="startEntranceCamera">
@@ -326,6 +344,14 @@
                             </button>
                             <button class="btn btn-success" id="captureEntranceImage">
                                 <i class="fas fa-camera"></i> Chụp ảnh
+                            </button>
+                        </div>
+                        <div class="mt-2 d-flex justify-content-center gap-2">
+                            <button class="btn btn-warning" id="openEntranceGate">
+                                <i class="fas fa-door-open"></i> Mở cổng
+                            </button>
+                            <button class="btn btn-danger" id="closeEntranceGate">
+                                <i class="fas fa-door-closed"></i> Đóng cổng
                             </button>
                         </div>
                     </div>
@@ -348,6 +374,14 @@
                             </button>
                             <button class="btn btn-success" id="captureExitImage">
                                 <i class="fas fa-camera"></i> Chụp ảnh
+                            </button>
+                        </div>
+                        <div class="mt-2 d-flex justify-content-center gap-2">
+                            <button class="btn btn-warning" id="openExitGate">
+                                <i class="fas fa-door-open"></i> Mở cổng
+                            </button>
+                            <button class="btn btn-danger" id="closeExitGate">
+                                <i class="fas fa-door-closed"></i> Đóng cổng
                             </button>
                         </div>
                     </div>
@@ -405,88 +439,6 @@
                 </div>
             </div>
         </div>
-
-        <div class="row parking-controls">
-            <div class="col-md-6">
-                <div class="search-box">
-                    <div class="search-wrapper">
-                        <i class="fas fa-search search-icon search-icon-left"></i>
-                        <input type="text" class="form-control search-input" id="searchInput" placeholder="Search parking spaces...">
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 text-end">
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSpaceModal">
-                    Add New Space
-                </button>
-            </div>
-        </div>
-{% comment %} 
-        <div class="parking-table">
-            <table class="table table-hover" id="parkingTable">
-                <thead class="table-dark">
-                    <tr>
-                        <th onclick="sortTable(0)">Parking Space ↕</th>
-                        <th onclick="sortTable(1)">Status ↕</th>
-                        <th onclick="sortTable(2)">Location ↕</th>
-                        <th onclick="sortTable(3)">License Plate</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Space 1</td>
-                        <td class="status-available">Available</td>
-                        <td>Level 1</td>
-                        <td>-</td>
-                        <td>
-                            <button class="btn btn-sm btn-success">Park</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Space 2</td>
-                        <td class="status-occupied">Occupied</td>
-                        <td>Level 2</td>
-                        <td>ABC-123</td>
-                        <td>
-                            <button class="btn btn-sm btn-danger">Remove</button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div> {% endcomment %}
-
-    <!-- Add Space Modal -->
-    <div class="modal fade" id="addSpaceModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Add New Parking Space</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="addSpaceForm">
-                        <div class="mb-3">
-                            <label class="form-label">Space Number</label>
-                            <input type="text" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Location</label>
-                            <select class="form-select">
-                                <option>Level 1</option>
-                                <option>Level 2</option>
-                                <option>Level 3</option>
-                            </select>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" form="addSpaceForm" class="btn btn-primary">Add Space</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -494,7 +446,7 @@
 
     <script>
         // Kết nối đến Flask WebSocket Server (cổng 5000)
-        var socket = io("http://localhost:5000");
+        var socket = io("http://127.0.0.1:5000");
 
         // Xác nhận khi kết nối thành công
         socket.on("connect", function() {
@@ -502,31 +454,34 @@
         });
 
         // Nhận dữ liệu xe vào từ Flask
+       // In your existing socket.on("vehicle_info") handler in index.html:
         socket.on("vehicle_info", function(data) {
             console.log("New entrance vehicle data:", data);
             
-            // Cập nhật thông tin xe vào
+            // Update entrance information
             document.getElementById('entrance-plate').textContent = data.license_plate;
             document.getElementById('entrance-owner').textContent = data.vehicle_owner;
             document.getElementById('entrance-time').textContent = data.entry_time;
             
-            // Cập nhật trạng thái xe vào
-            document.getElementById('entrance-status').textContent = 'Đã nhận diện';
-            document.getElementById('entrance-status').className = 'badge bg-success';
+            // Update status based on registration
+            document.getElementById('entrance-status').textContent = data.status;
+            document.getElementById('entrance-status').className = data.is_registered ? 
+                'badge bg-success' : 'badge bg-danger';
         });
 
-        // Nhận dữ liệu xe ra từ Flask
+        // In your existing socket.on("vehicle_exit") handler:
         socket.on("vehicle_exit", function(data) {
             console.log("New exit vehicle data:", data);
             
-            // Cập nhật thông tin xe ra 
+            // Update exit information
             document.getElementById('exit-plate').textContent = data.license_plate;
             document.getElementById('exit-owner').textContent = data.vehicle_owner;
             document.getElementById('exit-time').textContent = data.exit_time;
             
-            // Cập nhật trạng thái xe ra
-            document.getElementById('exit-status').textContent = 'Đã nhận diện';
-            document.getElementById('exit-status').className = 'badge bg-success';
+            // Update status based on registration
+            document.getElementById('exit-status').textContent = data.status;
+            document.getElementById('exit-status').className = data.is_registered ? 
+                'badge bg-success' : 'badge bg-danger';
         });
 
         // Xử lý lỗi kết nối
@@ -546,6 +501,57 @@
 
         document.getElementById('startExitCamera').addEventListener('click', function() {
             socket.emit('start_exit_camera');
+        });
+
+        // Gate control event handlers
+        document.getElementById('openEntranceGate').addEventListener('click', function() {
+            socket.emit('gate_control', { 
+                gate: 'entrance',
+                action: 'open'
+            });
+            this.disabled = true;
+            document.getElementById('closeEntranceGate').disabled = false;
+        });
+
+        document.getElementById('closeEntranceGate').addEventListener('click', function() {
+            socket.emit('gate_control', { 
+                gate: 'entrance',
+                action: 'close'
+            });
+            this.disabled = true;
+            document.getElementById('openEntranceGate').disabled = false;
+        });
+
+        document.getElementById('openExitGate').addEventListener('click', function() {
+            socket.emit('gate_control', { 
+                gate: 'exit',
+                action: 'open'
+            });
+            this.disabled = true;
+            document.getElementById('closeExitGate').disabled = false;
+        });
+
+        document.getElementById('closeExitGate').addEventListener('click', function() {
+            socket.emit('gate_control', { 
+                gate: 'exit',
+                action: 'close'
+            });
+            this.disabled = true;
+            document.getElementById('openExitGate').disabled = false;
+        });
+
+        // Add socket listener for gate status updates
+        socket.on('gate_status', function(data) {
+            const gateType = data.gate;
+            const isOpen = data.status === 'open';
+            
+            if (gateType === 'entrance') {
+                document.getElementById('openEntranceGate').disabled = isOpen;
+                document.getElementById('closeEntranceGate').disabled = !isOpen;
+            } else if (gateType === 'exit') {
+                document.getElementById('openExitGate').disabled = isOpen;
+                document.getElementById('closeExitGate').disabled = !isOpen;
+            }
         });
     </script>
 
