@@ -1,0 +1,9 @@
+# Bỏ qua thư mục môi trường ảo
+venv/
+
+# File tạm của Python
+__pycache__/
+*.pyc
+
+# SQLite DB (tuỳ chọn)
+db.sqlite3
