@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Parking Lot System{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .container-fluid {
+            padding: 1rem;
+            max-width: 100%;
+        }
+
+        .parking-header {
+            padding: 20px;
+            background-color: #2c3e50;
+            color: white;
+            margin-top: 10px;
+            border-radius: 230px 100px;
+            margin: 0 auto;
+            max-width: calc(100% - 50px);
+            width: 100%;           
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card {
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .card-body {
+            padding: 0.8rem;
+        }
+        .btn-primary {
+            background-color: #3498db;
+            border-color: #3498db;
+        }
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+        }
+        .alert {
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            margin-bottom: rem;
+        }
+        .container {
+            padding: 0 1.5rem;
+            max-width: 100%;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 0.3rem;
+            }
+            .card-body {
+                padding: 0.6rem;
+            }
+        }
+        
+        .table td, .table th {
+            padding: 0.5rem;
+        }
+        .form-control {
+            padding: 0.4rem 0.8rem;
+        }
+        .btn {
+            padding: 0.3rem 0.8rem;
+        }
+        .modal-body {
+            padding: 1rem;
+        }
+        .modal-header, .modal-footer {
+            padding: 0.8rem;
+        }
+        .nav-link {
+            padding: 0.4rem 0.8rem;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <header class="parking-header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <h1 class="h3 mb-0">Parking Management System</h1>
+                </div>
+                <nav>
+                    <ul class="nav">
+                        {% if request.session.user_id %}
+                            <li class="nav-item">
+                                <a href="{% url 'profile' %}" class="nav-link text-white">
+                                    <i class="fas fa-user"></i> {{ request.session.user_name }}
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'logout' %}" class="nav-link text-white">
+                                    <i class="fas fa-sign-out-alt"></i> Đăng xuất
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="nav-item">
+                                <a href="{% url 'login' %}" class="nav-link text-white">
+                                    <i class="fas fa-sign-in-alt"></i> Đăng nhập
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'register' %}" class="nav-link text-white">
+                                    <i class="fas fa-user-plus"></i> Đăng ký
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="mt-5 py-3 text-center">
+        <div class="container">
+            <p class="text-muted mb-0">&copy; 2024 Parking Management System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

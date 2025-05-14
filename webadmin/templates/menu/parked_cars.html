@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+
+{% block title %}Xe Đang Đỗ - Parking Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .car-card {
+        transition: all 0.3s ease;
+        margin-bottom: 0.5rem;
+    }
+
+    .car-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    }
+
+    .car-info {
+        padding: 0.5rem;
+    }
+
+    .car-info p {
+        margin-bottom: 0.3rem;
+        font-size: 0.9rem;
+    }
+
+    .car-status {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+
+    .search-filters {
+        background-color: white;
+        padding: 0.75rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        margin-bottom: 1rem;
+    }
+
+    .filter-group {
+        margin-bottom: 0.5rem;
+    }
+
+    .search-icon-left {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+    }
+
+    .search-wrapper {
+        position: relative;
+    }
+
+    .search-wrapper input {
+        padding-left: 2rem;
+    }
+
+    @media (max-width: 768px) {
+        .search-filters {
+            padding: 0.5rem;
+        }
+        .car-info {
+            padding: 0.4rem;
+        }
+    }
+
+    .row {
+        margin-left: -0.25rem;
+        margin-right: -0.25rem;
+    }
+
+    .row > [class*='col-'] {
+        padding: 0 0.25rem;
+    }
+
+    .gap-3 {
+        gap: 0.5rem !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Search and Filters -->
+<div class="search-filters mb-4">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="search-wrapper">
+                <i class="fas fa-search search-icon search-icon-left"></i>
+                <input type="text" id="searchInput" class="form-control" placeholder="Tìm kiếm biển số xe...">
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="d-flex gap-3">
+                <select class="form-select" id="locationFilter">
+                    <option value="">Tất cả vị trí</option>
+                    <option>Tầng 1</option>
+                    <option>Tầng 2</option>
+                    <option>Tầng 3</option>
+                </select>
+                <select class="form-select" id="sortBy">
+                    <option value="">Sắp xếp theo</option>
+                    <option>Thời gian vào - Mới nhất</option>
+                    <option>Thời gian vào - Cũ nhất</option>
+                    <option>Biển số xe</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Messages -->
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Parked Cars Grid -->
+<div class="row" id="parkedCarsGrid">
+    {% if parked_vehicles %}
+        {% for vehicle in parked_vehicles %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card car-card">
+                    <div class="card-body">
+                        <span class="badge bg-success car-status">Đang đỗ</span>
+                        <h5 class="card-title">{{ vehicle.license_plate }}</h5>
+                        <div class="car-info">
+                            <p><strong>Chủ xe:</strong> {{ vehicle.user.name|default:"Không có thông tin" }}</p>
+                            {% if vehicle.parking_space %}
+                            <p><strong>Vị trí đỗ:</strong> Tầng {{ vehicle.parking_space.level }} - Ô {{ vehicle.parking_space.space_number }}</p>
+                            {% else %}
+                            <p><strong>Vị trí đỗ:</strong> Chưa cập nhật</p>
+                            {% endif %}
+                            <p><strong>Loại xe:</strong> {{ vehicle.vehicle_type }}</p>
+                            <p><strong>Thời gian vào:</strong> {{ vehicle.entry_time|date:"H:i d/m/Y" }}</p>
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <a href="{% url 'vehicle_detail' vehicle.id %}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-info-circle"></i> Chi tiết
+                                </a>
+                                <button class="btn btn-danger btn-sm exit-vehicle" data-id="{{ vehicle.id }}" data-plate="{{ vehicle.license_plate }}">
+                                    <i class="fas fa-car"></i> Xuất xe
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                Không có xe nào đang đỗ.
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        const searchText = e.target.value.toLowerCase();
+        const cards = document.querySelectorAll('.car-card');
+        
+        cards.forEach(card => {
+            const plateNumber = card.querySelector('.card-title').textContent.toLowerCase();
+            const ownerName = card.querySelector('.car-info p:first-child').textContent.toLowerCase();
+            
+            if (plateNumber.includes(searchText) || ownerName.includes(searchText)) {
+                card.parentElement.style.display = '';
+            } else {
+                card.parentElement.style.display = 'none';
+            }
+        });
+    });
+
+    // Sort functionality
+    document.getElementById('sortBy').addEventListener('change', function(e) {
+        const sortValue = e.target.value;
+        const grid = document.getElementById('parkedCarsGrid');
+        const cards = Array.from(grid.getElementsByClassName('col-md-6'));
+        
+        cards.sort((a, b) => {
+            const aTitle = a.querySelector('.card-title').textContent;
+            const bTitle = b.querySelector('.card-title').textContent;
+            const aTime = a.querySelector('.car-info p:nth-child(4)').textContent;
+            const bTime = b.querySelector('.car-info p:nth-child(4)').textContent;
+            
+            if (sortValue === 'Biển số xe') {
+                return aTitle.localeCompare(bTitle);
+            } else if (sortValue === 'Thời gian vào - Mới nhất') {
+                return new Date(bTime) - new Date(aTime);
+            } else if (sortValue === 'Thời gian vào - Cũ nhất') {
+                return new Date(aTime) - new Date(bTime);
+            }
+        });
+        
+        cards.forEach(card => grid.appendChild(card));
+    });
+
+    // Location filter
+    document.getElementById('locationFilter').addEventListener('change', function(e) {
+        const location = e.target.value.toLowerCase();
+        const cards = document.querySelectorAll('.car-card');
+        
+        cards.forEach(card => {
+            const cardLocation = card.querySelector('.car-info p:nth-child(2)').textContent.toLowerCase();
+            if (!location || cardLocation.includes(location)) {
+                card.parentElement.style.display = '';
+            } else {
+                card.parentElement.style.display = 'none';
+            }
+        });
+    });
+
+    // Exit vehicle functionality
+    document.querySelectorAll('.exit-vehicle').forEach(button => {
+        button.addEventListener('click', async function() {
+            const vehicleId = this.dataset.id;
+            const licensePlate = this.dataset.plate;
+            
+            if (confirm(`Bạn có chắc muốn xuất xe ${licensePlate} không?`)) {
+                try {
+                    const response = await fetch('/exit-vehicle/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({
+                            vehicle_id: vehicleId
+                        })
+                    });
+
+                    if (response.ok) {
+                        // Reload the page to show updated list
+                        window.location.reload();
+                    } else {
+                        alert('Có lỗi xảy ra khi xuất xe.');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi xuất xe.');
+                }
+            }
+        });
+    });
+
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

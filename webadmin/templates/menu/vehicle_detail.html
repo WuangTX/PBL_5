@@ -1,0 +1,312 @@
+{% extends 'base.html' %}
+
+{% block title %}Chi tiết xe {{ vehicle.license_plate }} - Parking Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .vehicle-detail-card {
+        border-radius: 10px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    
+    .vehicle-header {
+        background-color: #3498db;
+        color: white;
+        padding: 1.5rem;
+        position: relative;
+    }
+    
+    .vehicle-status {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        padding: 0.4rem 1rem;
+    }
+    
+    .vehicle-info {
+        padding: 1.5rem;
+    }
+    
+    .vehicle-img {
+        width: 100%;
+        height: 250px;
+        object-fit: cover;
+        border-radius: 8px;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    }
+    
+    .info-label {
+        color: #6c757d;
+        margin-bottom: 0.2rem;
+    }
+    
+    .info-value {
+        font-weight: 500;
+        margin-bottom: 1.2rem;
+    }
+    
+    .history-card {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .history-card .date {
+        font-weight: 500;
+        color: #495057;
+    }
+    
+    .history-card .duration {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    
+    .actions {
+        margin-top: 1.5rem;
+    }
+    
+    .no-image {
+        height: 250px;
+        background-color: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #777;
+        border-radius: 8px;
+    }
+    
+    .current-parking {
+        background-color: #e8f4fd;
+        border-left: 4px solid #3498db;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Thông báo -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <!-- Nút quay lại -->
+    <div class="mb-3">
+        <a href="{% url 'parked_cars' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Quay lại danh sách xe
+        </a>
+    </div>
+    
+    <div class="row">
+        <!-- Thông tin xe -->
+        <div class="col-lg-8">
+            <div class="vehicle-detail-card mb-4">
+                <div class="vehicle-header">
+                    <h4>{{ vehicle.license_plate }}</h4>
+                    <p class="mb-0">{{ vehicle.vehicle_type }}</p>
+                    {% if current_parking %}
+                        <span class="badge bg-success vehicle-status">Đang đỗ</span>
+                    {% else %}
+                        <span class="badge bg-secondary vehicle-status">Không đỗ</span>
+                    {% endif %}
+                </div>
+                
+                <div class="vehicle-info">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="info-label">Chủ xe</div>
+                            <div class="info-value">{{ vehicle.user.name }}</div>
+                            
+                            <div class="info-label">Liên hệ</div>
+                            <div class="info-value">
+                                <i class="fas fa-phone-alt me-2"></i>{{ vehicle.user.phone_number }}
+                                {% if vehicle.user.email %}
+                                <div><i class="fas fa-envelope me-2"></i>{{ vehicle.user.email }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="info-label">Biển số xe</div>
+                            <div class="info-value">{{ vehicle.license_plate }}</div>
+                            
+                            <div class="info-label">Loại xe</div>
+                            <div class="info-value">{{ vehicle.vehicle_type }}</div>
+                            
+                            <div class="info-label">Đăng ký</div>
+                            <div class="info-value">{{ vehicle.created_at|date:"d/m/Y H:i" }}</div>
+                        </div>
+                    </div>
+                    
+                    {% if current_parking %}
+                    <div class="current-parking">
+                        <h5 class="mb-3"><i class="fas fa-parking me-2"></i>Thông tin đỗ xe hiện tại</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="info-label">Vị trí đỗ</div>
+                                {% if current_parking.parking_space %}
+                                <div class="info-value">
+                                    <i class="fas fa-map-marker-alt me-1"></i> 
+                                    Tầng {{ current_parking.parking_space.level }} - 
+                                    Ô {{ current_parking.parking_space.space_number }}
+                                </div>
+                                {% else %}
+                                <div class="info-value">Chưa cập nhật</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-label">Thời gian vào</div>
+                                <div class="info-value">{{ current_parking.time_in|date:"H:i d/m/Y" }}</div>
+                                
+                                <div class="info-label">Thời gian đỗ</div>
+                                <div class="info-value" id="parkingDuration">
+                                    <span id="duration-hours">0</span> giờ
+                                    <span id="duration-minutes">0</span> phút
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <button class="btn btn-danger btn-sm" id="exitVehicleBtn" data-id="{{ vehicle.id }}" data-plate="{{ vehicle.license_plate }}">
+                                <i class="fas fa-car me-1"></i> Xuất xe
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Lịch sử gần đây -->
+                    {% if past_parkings %}
+                    <h5 class="mb-3 mt-4"><i class="fas fa-history me-2"></i>Lịch sử đỗ xe gần đây</h5>
+                    {% for parking in past_parkings %}
+                    <div class="history-card">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="date">
+                                    <i class="fas fa-calendar-alt me-2"></i>
+                                    {{ parking.time_in|date:"d/m/Y" }}
+                                </div>
+                                <div class="duration">
+                                    <i class="fas fa-clock me-2"></i>
+                                    {{ parking.time_in|date:"H:i" }} - {{ parking.time_out|date:"H:i" }}
+                                </div>
+                            </div>
+                            {% if parking.parking_space %}
+                            <div>
+                                <span class="badge bg-info">
+                                    <i class="fas fa-map-marker-alt me-1"></i>
+                                    Tầng {{ parking.parking_space.level }} - 
+                                    Ô {{ parking.parking_space.space_number }}
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Hình ảnh xe -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header py-2">
+                    <h5 class="mb-0"><i class="fas fa-image me-2"></i>Hình ảnh xe</h5>
+                </div>
+                <div class="card-body text-center">
+                    {% if vehicle.image_path %}
+                    <img src="/media/{{ vehicle.image_path }}" class="vehicle-img img-fluid" alt="Hình ảnh xe {{ vehicle.license_plate }}">
+                    <div class="text-muted mt-2">
+                        <small>Ảnh xe khi đăng ký</small>
+                    </div>
+                    {% else %}
+                    <div class="no-image">
+                        <div class="text-center">
+                            <i class="fas fa-car fa-3x mb-2"></i>
+                            <p>Không có hình ảnh</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Tính và cập nhật thời gian đỗ xe
+    function updateParkingDuration() {
+        {% if current_parking %}
+        const entryTime = new Date("{{ current_parking.time_in|date:'Y-m-d H:i:s' }}");
+        const currentTime = new Date();
+        
+        const diffInMs = currentTime - entryTime;
+        const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+        const diffInMinutes = Math.floor((diffInMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        document.getElementById('duration-hours').textContent = diffInHours;
+        document.getElementById('duration-minutes').textContent = diffInMinutes;
+        {% endif %}
+    }
+    
+    // Cập nhật thời gian mỗi phút
+    updateParkingDuration();
+    setInterval(updateParkingDuration, 60000); // 60000ms = 1 phút
+    
+    // Xử lý nút xuất xe
+    document.getElementById('exitVehicleBtn')?.addEventListener('click', async function() {
+        const vehicleId = this.dataset.id;
+        const licensePlate = this.dataset.plate;
+        
+        if (confirm(`Bạn có chắc muốn xuất xe ${licensePlate} không?`)) {
+            try {
+                const response = await fetch('/exit-vehicle/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        vehicle_id: vehicleId
+                    })
+                });
+
+                if (response.ok) {
+                    window.location.href = "{% url 'parked_cars' %}";
+                } else {
+                    alert('Có lỗi xảy ra khi xuất xe.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra khi xuất xe.');
+            }
+        }
+    });
+    
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+
+{% block title %}Quản lý xe - Parking Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-card {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        margin-bottom: 1.5rem;
+    }
+    
+    .vehicle-card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+        margin-bottom: 1rem;
+    }
+    
+    .vehicle-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    
+    .vehicle-img {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+    
+    .license-plate {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .vehicle-owner {
+        color: #6c757d;
+    }
+    
+    .vehicle-type {
+        font-size: 0.85rem;
+        color: #495057;
+    }
+    
+    .status-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+    
+    .action-btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.85rem;
+    }
+    
+    .no-vehicle-container {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 3rem 2rem;
+        text-align: center;
+    }
+    
+    .no-image-placeholder {
+        width: 80px;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f0f0f0;
+        border-radius: 8px;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4"><i class="fas fa-car-alt me-2"></i>Quản lý xe</h2>
+    
+    <!-- Thông báo -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <!-- Tìm kiếm -->
+    <div class="search-card p-3 mb-4">
+        <form method="get" action="{% url 'manage_vehicles' %}" class="row g-2">
+            <div class="col-md-8">
+                <div class="input-group">
+                    <span class="input-group-text bg-white">
+                        <i class="fas fa-search text-muted"></i>
+                    </span>
+                    <input type="text" name="q" class="form-control" placeholder="Tìm biển số, chủ xe, loại xe..." value="{{ search_query }}">
+                </div>
+            </div>
+            <div class="col-md-4 d-grid d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search me-1"></i> Tìm kiếm
+                </button>
+                <a href="{% url 'add_vehicle' %}" class="btn btn-success ms-md-2">
+                    <i class="fas fa-plus me-1"></i> Thêm xe mới
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Danh sách xe -->
+    {% if vehicles %}
+        <div class="row">
+            {% for vehicle in vehicles %}
+                <div class="col-md-12 mb-3">
+                    <div class="card vehicle-card">
+                        <div class="card-body p-3">
+                            <div class="row align-items-center">
+                                <!-- Hình ảnh xe -->
+                                <div class="col-auto">
+                                    {% if vehicle.image_path %}
+                                        <img src="/media/{{ vehicle.image_path }}" class="vehicle-img" alt="{{ vehicle.license_plate }}">
+                                    {% else %}
+                                        <div class="no-image-placeholder">
+                                            <i class="fas fa-car"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Thông tin xe -->
+                                <div class="col">
+                                    <div class="license-plate">{{ vehicle.license_plate }}</div>
+                                    <div class="vehicle-owner">
+                                        <i class="fas fa-user me-1"></i> {{ vehicle.user.name }}
+                                        {% if vehicle.user.phone_number %}
+                                        <small class="ms-2">
+                                            <i class="fas fa-phone-alt me-1"></i>{{ vehicle.user.phone_number }}
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="vehicle-type">
+                                        <span class="badge bg-secondary">{{ vehicle.vehicle_type }}</span>
+                                        <small class="ms-2">Đăng ký: {{ vehicle.created_at|date:"d/m/Y" }}</small>
+                                    </div>
+                                </div>
+                                
+                                <!-- Nút thao tác -->
+                                <div class="col-auto">
+                                    <a href="{% url 'vehicle_detail' vehicle.id %}" class="btn btn-outline-primary action-btn">
+                                        <i class="fas fa-info-circle me-1"></i> Chi tiết
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Phân trang -->
+        {% if vehicles.has_other_pages %}
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if vehicles.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ vehicles.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for num in vehicles.paginator.page_range %}
+                        {% if vehicles.number == num %}
+                            <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                        {% elif num > vehicles.number|add:'-3' and num < vehicles.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if vehicles.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ vehicles.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ vehicles.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+        
+    {% else %}
+        <div class="no-vehicle-container">
+            <div class="mb-3">
+                <i class="fas fa-car-alt fa-4x text-muted"></i>
+            </div>
+            <h4 class="mb-2">Không tìm thấy xe nào</h4>
+            {% if search_query %}
+                <p class="text-muted mb-3">Không có kết quả nào phù hợp với tìm kiếm "{{ search_query }}"</p>
+                <a href="{% url 'manage_vehicles' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i> Xóa bộ lọc
+                </a>
+            {% else %}
+                <p class="text-muted mb-3">Hiện chưa có xe nào được đăng ký trong hệ thống</p>
+                <a href="{% url 'add_vehicle' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i> Thêm xe mới
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

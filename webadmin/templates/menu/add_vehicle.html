@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-3">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white py-2">
+                    <h5 class="mb-0">Đăng Ký Xe Mới</h5>
+                </div>
+                <div class="card-body p-3">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2 mb-3">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="POST" action="{% url 'add_vehicle' %}" enctype="multipart/form-data" id="addVehicleForm">
+                        {% csrf_token %}
+                        <div class="mb-2">
+                            <label class="form-label small mb-1">Biển số xe</label>
+                            <input type="text" name="license_plate" class="form-control form-control-sm" id="licensePlateInput" 
+                                   required placeholder="Ví dụ: 43A1-2345">
+                            <div id="licensePlateStatus" class="form-text mt-1"></div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label small mb-1">Số điện thoại</label>
+                            <input type="tel" name="phone_number" class="form-control form-control-sm" id="phoneInput" 
+                                   placeholder="Số điện thoại chủ xe" required>
+                            <div id="phoneStatus" class="form-text mt-1"></div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label small mb-1">Chủ xe</label>
+                            <input type="text" name="owner_name" class="form-control form-control-sm" id="ownerNameInput" required>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label small mb-1">Email</label>
+                            <input type="email" name="email" class="form-control form-control-sm" id="userEmail" 
+                                   placeholder="Email chủ xe (không bắt buộc)">
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label small mb-1">Loại xe</label>
+                            <select name="vehicle_type" class="form-select form-select-sm" required>
+                                <option value="">Chọn loại xe</option>
+                                <option value="Sedan">Sedan</option>
+                                <option value="SUV">SUV</option>
+                                <option value="Hatchback">Hatchback</option>
+                                <option value="MPV">MPV</option>
+                                <option value="Van">Van</option>
+                                <option value="Pickup">Pickup</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small mb-1">Ảnh xe</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="file" name="vehicle_image" class="form-control form-control-sm" 
+                                       accept="image/*" id="vehicleImage">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="uploadLater">
+                                    <label class="form-check-label small" for="uploadLater">
+                                        Thêm ảnh sau
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info py-2 mb-3">
+                            <small><i class="fas fa-info-circle"></i> Mật khẩu mặc định cho tài khoản mới là: 123456</small>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-sm" id="submitButton">
+                                <i class="fas fa-plus-circle"></i> Đăng ký xe
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('addVehicleForm');
+    const submitButton = document.getElementById('submitButton');
+    const licensePlateInput = document.getElementById('licensePlateInput');
+    const phoneInput = document.getElementById('phoneInput');
+    const ownerNameInput = document.getElementById('ownerNameInput');
+    const uploadLater = document.getElementById('uploadLater');
+    const vehicleImage = document.getElementById('vehicleImage');
+    
+    let isLicensePlateValid = false;
+    let isPhoneValid = false;
+
+    // Kiểm tra biển số xe
+    let licensePlateTimeout;
+    licensePlateInput.addEventListener('input', function() {
+        clearTimeout(licensePlateTimeout);
+        const licensePlate = this.value.trim();
+        
+        if (licensePlate.length < 5) {
+            document.getElementById('licensePlateStatus').innerHTML = '';
+            isLicensePlateValid = false;
+            updateSubmitButton();
+            return;
+        }
+
+        licensePlateTimeout = setTimeout(async () => {
+            try {
+                const response = await fetch('/webadmin/check_license_plate/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ license_plate: licensePlate })
+                });
+
+                const data = await response.json();
+                
+                if (data.isAvailable) {
+                    document.getElementById('licensePlateStatus').innerHTML = `
+                        <div class="alert alert-success py-2 mb-0">
+                            <i class="fas fa-check-circle"></i> Biển số hợp lệ
+                        </div>`;
+                    isLicensePlateValid = true;
+                } else {
+                    document.getElementById('licensePlateStatus').innerHTML = `
+                        <div class="alert alert-danger py-2 mb-0">
+                            <i class="fas fa-exclamation-circle"></i> Biển số đã được đăng ký cho ${data.ownerName}
+                        </div>`;
+                    isLicensePlateValid = false;
+                }
+                updateSubmitButton();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }, 500);
+    });
+
+    // Kiểm tra số điện thoại
+    let phoneTimeout;
+    phoneInput.addEventListener('input', function() {
+        clearTimeout(phoneTimeout);
+        const phone = this.value.trim();
+        
+        if (phone.length < 10) {
+            document.getElementById('phoneStatus').innerHTML = '';
+            ownerNameInput.value = '';
+            ownerNameInput.readOnly = false;
+            isPhoneValid = false;
+            updateSubmitButton();
+            return;
+        }
+
+        phoneTimeout = setTimeout(async () => {
+            try {
+                const response = await fetch('/webadmin/check_phone/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ phone: phone })
+                });
+
+                const data = await response.json();
+                
+                if (data.isNewUser) {
+                    document.getElementById('phoneStatus').innerHTML = `
+                        <div class="alert alert-success py-2 mb-0">
+                            <i class="fas fa-check-circle"></i> Số điện thoại hợp lệ
+                        </div>`;
+                    ownerNameInput.value = '';
+                    ownerNameInput.readOnly = false;
+                } else {
+                    document.getElementById('phoneStatus').innerHTML = `
+                        <div class="alert alert-warning py-2 mb-0">
+                            <i class="fas fa-exclamation-circle"></i> Đã tìm thấy thông tin chủ xe
+                        </div>`;
+                    ownerNameInput.value = data.ownerName;
+                    ownerNameInput.readOnly = true;
+                }
+                isPhoneValid = true;
+                updateSubmitButton();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }, 500);
+    });
+
+    // Xử lý checkbox "Thêm ảnh sau"
+    uploadLater.addEventListener('change', function() {
+        vehicleImage.disabled = this.checked;
+        if (this.checked) {
+            vehicleImage.value = '';
+        }
+    });
+
+    // Validate form before submit
+    form.addEventListener('submit', function(e) {
+        if (!isLicensePlateValid || !isPhoneValid) {
+            e.preventDefault();
+            alert('Vui lòng kiểm tra lại thông tin!');
+        }
+    });
+
+    // Cập nhật trạng thái nút submit
+    function updateSubmitButton() {
+        submitButton.disabled = !(isLicensePlateValid && isPhoneValid);
+    }
+
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %}
