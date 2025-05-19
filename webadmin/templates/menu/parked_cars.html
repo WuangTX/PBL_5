@@ -225,9 +225,8 @@
             const vehicleId = this.dataset.id;
             const licensePlate = this.dataset.plate;
             
-            if (confirm(`Bạn có chắc muốn xuất xe ${licensePlate} không?`)) {
-                try {
-                    const response = await fetch('/exit-vehicle/', {
+            if (confirm(`Bạn có chắc muốn xuất xe ${licensePlate} không?`)) {                try {
+                    const response = await fetch('/webadmin/exit-vehicle/', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

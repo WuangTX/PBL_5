@@ -1,0 +1,453 @@
+{% extends 'base.html' %}
+
+{% block title %}Quản lý Bãi Đỗ Xe - Parking Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-row {
+        margin-bottom: 1rem;
+        padding: 0.5rem;
+        background-color: #f8f9fa;
+        border-radius: 0.25rem;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .space-status {
+        display: inline-block;
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+    
+    .space-status-occupied {
+        background-color: #dc3545;
+    }
+    
+    .space-status-available {
+        background-color: #28a745;
+    }
+    
+    .parking-stats {
+        display: flex;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-card {
+        flex: 1;
+        padding: 0.75rem;
+        text-align: center;
+        background-color: #fff;
+        border-radius: 0.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-right: 0.5rem;
+    }
+    
+    .stat-card:last-child {
+        margin-right: 0;
+    }
+    
+    .stat-card h4 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    
+    .stat-card small {
+        color: #6c757d;
+    }
+    
+    .pagination {
+        justify-content: center;
+        margin-top: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+        .parking-stats {
+            flex-direction: column;
+        }
+        
+        .stat-card {
+            margin-right: 0;
+            margin-bottom: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="my-3">Quản lý Bãi Đỗ Xe</h2>
+    
+    <!-- Thông báo -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+      <!-- Thống kê tổng quát -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Tổng số vị trí</h6>
+                    <h2 class="mb-0">{{ total_spaces }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-white-50 mb-2">Vị trí trống</h6>
+                    <h2 class="mb-0">{{ available_spaces }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card bg-danger text-white h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-white-50 mb-2">Vị trí đã sử dụng</h6>
+                    <h2 class="mb-0">{{ occupied_spaces }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>    <!-- Bộ lọc -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <i class="fas fa-filter me-2"></i> Bộ lọc
+        </div>
+        <div class="card-body">
+            <form method="get" action="{% url 'manage_parking_spaces' %}">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" name="q" placeholder="Tìm kiếm vị trí đỗ..." value="{{ search_query }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-layer-group"></i></span>
+                            <select class="form-select" name="level">
+                                <option value="">-- Chọn tầng --</option>
+                                {% for level in levels %}
+                                    <option value="{{ level }}" {% if level_filter == level|stringformat:"i" %}selected{% endif %}>Tầng {{ level }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-car"></i></span>
+                            <select class="form-select" name="status">
+                                <option value="">-- Trạng thái --</option>
+                                <option value="1" {% if status_filter == '1' %}selected{% endif %}>Đã sử dụng</option>
+                                <option value="0" {% if status_filter == '0' %}selected{% endif %}>Trống</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-grid gap-2 d-flex">
+                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                <i class="fas fa-filter me-1"></i> Lọc
+                            </button>
+                            <a href="{% url 'manage_parking_spaces' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-sync-alt"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>      <!-- Danh sách vị trí đỗ xe -->
+    <div class="card mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>Danh sách vị trí đỗ xe
+                {% if parking_spaces.count %}
+                <span class="badge rounded-pill bg-primary align-middle ms-2">{{ parking_spaces.paginator.count }}</span>
+                {% endif %}
+            </h5>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addParkingSpaceModal">
+                <i class="fas fa-plus me-1"></i> Thêm Vị Trí Đỗ Mới
+            </button>
+        </div>
+        <div class="card-body p-0">            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="px-3">Vị trí</th>
+                            <th>Tầng</th>
+                            <th>Trạng thái</th>
+                            <th>Ghi chú</th>
+                            <th class="text-center">Thao tác</th>
+                        </tr>
+                    </thead>                    <tbody>
+                        {% for space in parking_spaces %}
+                            <tr>
+                                <td class="px-3"><strong>Ô {{ space.space_number }}</strong></td>
+                                <td>Tầng {{ space.level }}</td>
+                                <td>
+                                    {% if space.is_occupied == 1 %}
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-car me-1"></i> Đã sử dụng
+                                        </span>
+                                    {% else %}                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle me-1"></i> Trống
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ space.notes|default:"-" }}</td>
+                                <td class="text-center">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-outline-primary edit-space-btn" 
+                                                data-id="{{ space.id|stringformat:'s' }}" 
+                                                data-space="{{ space.space_number }}" 
+                                                data-level="{{ space.level }}" 
+                                                data-notes="{{ space.notes|default:'' }}"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#editParkingSpaceModal">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger delete-space-btn" 
+                                                data-id="{{ space.id|stringformat:'s' }}" 
+                                                data-space="Tầng {{ space.level }} - Ô {{ space.space_number }}"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteParkingSpaceModal"
+                                                {% if space.is_occupied == 1 %}disabled{% endif %}>
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">Không có vị trí đỗ nào.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>        </table>
+    </div>
+    
+    <!-- Phân trang -->
+    {% if parking_spaces.has_other_pages %}
+        <nav>
+            <ul class="pagination">
+                {% if parking_spaces.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">&laquo; Đầu</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ parking_spaces.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Trước</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&laquo; Đầu</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">Trước</span>
+                    </li>
+                {% endif %}
+                
+                {% for i in parking_spaces.paginator.page_range %}
+                    {% if i > parking_spaces.number|add:'-3' and i < parking_spaces.number|add:'3' %}
+                        <li class="page-item {% if i == parking_spaces.number %}active{% endif %}">
+                            <a class="page-link" href="?page={{ i }}{% if search_query %}&q={{ search_query }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ i }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if parking_spaces.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ parking_spaces.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Tiếp</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ parking_spaces.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Cuối &raquo;</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Tiếp</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">Cuối &raquo;</span>
+                    </li>                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+    </div>
+</div>
+
+<!-- Modal Thêm Vị Trí Đỗ Mới -->
+<div class="modal fade" id="addParkingSpaceModal" tabindex="-1" aria-labelledby="addParkingSpaceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{% url 'add_parking_space' %}" method="post">
+                {% csrf_token %}
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="addParkingSpaceModalLabel">
+                        <i class="fas fa-plus-circle me-2"></i>Thêm Vị Trí Đỗ Mới
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="space_number" class="form-label">
+                            <i class="fas fa-parking me-1"></i> Số vị trí
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">Ô</span>
+                            <input type="text" class="form-control" id="space_number" name="space_number" placeholder="A1, B2..." required>
+                        </div>
+                        <small class="text-muted">Nhập định dạng như A1, B2...</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="level" class="form-label">
+                            <i class="fas fa-layer-group me-1"></i> Tầng
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">Tầng</span>
+                            <input type="number" class="form-control" id="level" name="level" min="1" value="1" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">
+                            <i class="fas fa-sticky-note me-1"></i> Ghi chú
+                        </label>
+                        <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="Thêm ghi chú về vị trí đỗ này (nếu có)"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i> Hủy
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus me-1"></i> Thêm vị trí
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Sửa Vị Trí Đỗ -->
+<div class="modal fade" id="editParkingSpaceModal" tabindex="-1" aria-labelledby="editParkingSpaceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editParkingSpaceForm" method="post">
+                {% csrf_token %}
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="editParkingSpaceModalLabel">
+                        <i class="fas fa-edit me-2"></i>Sửa Thông Tin Vị Trí Đỗ
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_space_number" class="form-label">
+                            <i class="fas fa-parking me-1"></i> Số vị trí
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">Ô</span>
+                            <input type="text" class="form-control" id="edit_space_number" name="space_number" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_level" class="form-label">
+                            <i class="fas fa-layer-group me-1"></i> Tầng
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">Tầng</span>
+                            <input type="number" class="form-control" id="edit_level" name="level" min="1" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_notes" class="form-label">
+                            <i class="fas fa-sticky-note me-1"></i> Ghi chú
+                        </label>
+                        <textarea class="form-control" id="edit_notes" name="notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i> Hủy
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Lưu thay đổi
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Xóa Vị Trí Đỗ -->
+<div class="modal fade" id="deleteParkingSpaceModal" tabindex="-1" aria-labelledby="deleteParkingSpaceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteParkingSpaceModalLabel">
+                    <i class="fas fa-trash-alt me-2"></i>Xác nhận xóa
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-exclamation-triangle text-warning fs-1"></i>
+                </div>
+                <p class="text-center fs-5">Bạn có chắc chắn muốn xóa vị trí đỗ</p>
+                <p class="text-center fw-bold fs-4"><span id="delete_space_name"></span>?</p>
+                <p class="text-muted small text-center">Hành động này không thể hoàn tác.</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Hủy
+                </button>
+                <a href="#" id="confirm_delete" class="btn btn-danger">
+                    <i class="fas fa-trash-alt me-1"></i> Xác nhận xóa
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Function to sanitize UUID for URL
+    function sanitizeUuid(uuid) {
+        // Remove any non-alphanumeric characters
+        return uuid.toString().replace(/[^a-zA-Z0-9]/g, '');
+    }
+      // Xử lý sự kiện click vào nút sửa
+    document.querySelectorAll('.edit-space-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const space = this.dataset.space;
+            const level = this.dataset.level;
+            const notes = this.dataset.notes;
+            
+            document.getElementById('edit_space_number').value = space;
+            document.getElementById('edit_level').value = level;
+            document.getElementById('edit_notes').value = notes;
+            
+            document.getElementById('editParkingSpaceForm').action = `/webadmin/update-parking-space/${id}/`;
+        });
+    });
+    
+    // Xử lý sự kiện click vào nút xóa
+    document.querySelectorAll('.delete-space-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const space = this.dataset.space;
+            
+            document.getElementById('delete_space_name').textContent = space;
+            document.getElementById('confirm_delete').href = `/webadmin/delete-parking-space/${id}/`;
+        });
+    });
+</script>
+{% endblock %}

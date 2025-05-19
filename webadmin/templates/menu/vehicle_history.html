@@ -139,22 +139,20 @@
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0" id="history-table">
-                    <thead>
+                <table class="table table-hover mb-0" id="history-table">                    <thead>
                         <tr>
                             <th>Biển số</th>
                             <th>Chủ xe</th>
+                            <th>Chỗ đỗ</th>
                             <th>Thời gian vào</th>
                             <th>Thời gian ra</th>
                             <th>Thời gian đỗ</th>
                             <th>Trạng thái</th>
                         </tr>
-                    </thead>
-                    <tbody id="history-records">
-                        {% for record in records %}
-                        <tr>
-                            <td>{{ record.plate_number }}</td>
-                            <td>{% with user=record.get_user %}{% if user %}{{ user.name }}{% else %}Không có thông tin{% endif %}{% endwith %}</td>
+                    </thead>                    <tbody id="history-records">                        {% for record in records %}
+                        <tr>                            <td>{{ record.vehicle.license_plate|default:"Không xác định" }}</td>
+                            <td>{% if record.vehicle and record.vehicle.user %}{{ record.vehicle.user.name }}{% else %}Không có thông tin{% endif %}</td>
+                            <td>{% if record.parking_space %}Ô {{ record.parking_space.space_number }} - Tầng {{ record.parking_space.level }}{% else %}Không xác định{% endif %}</td>
                             <td>{{ record.time_in|date:"H:i d/m/Y" }}</td>
                             <td>{{ record.time_out|date:"H:i d/m/Y"|default:"--" }}</td>
                             <td class="duration-column">

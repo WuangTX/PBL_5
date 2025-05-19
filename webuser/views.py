@@ -75,14 +75,12 @@ def my_vehicles(request):
 def parking_history(request):
     """Trang lịch sử đỗ xe của người dùng"""
     user_id = request.session['user_id']
-    user = User.objects.get(id=user_id)
-    
-    # Lấy tất cả xe của người dùng
+    user = User.objects.get(id=user_id)    # Lấy tất cả xe của người dùng
     vehicles = Vehicle.objects.filter(user=user)
-    license_plates = [vehicle.license_plate for vehicle in vehicles]
+    vehicle_ids = [vehicle.id for vehicle in vehicles]
     
-    # Lấy lịch sử đỗ xe dựa trên biển số xe
-    histories = History.objects.filter(plate_number__in=license_plates).order_by('-time_in')
+    # Lấy lịch sử đỗ xe dựa trên vehicle_id
+    histories = History.objects.filter(vehicle_id__in=vehicle_ids).order_by('-time_in')
     
     return render(request, 'user/history.html', {'user': user, 'histories': histories})
 

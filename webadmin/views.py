@@ -14,6 +14,33 @@ import uuid
 import json
 from django.core.paginator import Paginator
 
+# Helper function for UUID conversion
+def parse_uuid(uuid_str):
+    """Convert a string to a UUID object, return None if invalid"""
+    try:
+        # Skip conversion if already a UUID
+        if isinstance(uuid_str, uuid.UUID):
+            return uuid_str
+            
+        # Handle None or empty string
+        if uuid_str is None or uuid_str == '':
+            return None
+        
+        # Remove any curly braces, dashes, and whitespace
+        clean_uuid = uuid_str.strip().replace('{', '').replace('}', '').replace('-', '').strip()
+        
+        # Handle potential hexadecimal formatting issues
+        if len(clean_uuid) == 32:
+            # Insert hyphens to form a valid UUID format
+            formatted_uuid = f"{clean_uuid[0:8]}-{clean_uuid[8:12]}-{clean_uuid[12:16]}-{clean_uuid[16:20]}-{clean_uuid[20:]}"
+            return uuid.UUID(formatted_uuid)
+        
+        # Try standard conversion
+        return uuid.UUID(uuid_str)
+    except (ValueError, AttributeError, TypeError) as e:
+        print(f"UUID parse error: {e}, value: {uuid_str}")
+        return None
+
 # Các decorator xác thực
 def login_required(view_func):
     """
@@ -55,23 +82,38 @@ def index(request):
         last_24_hours = now - timedelta(days=1)
         
         # Tạo danh sách 24 giờ với số lượng xe là 0
-        hourly_data = {i: 0 for i in range(24)}
+        hourly_data = {}
+        for i in range(24):
+            hourly_data[i] = {'entrance': 0, 'exit': 0}
         
-        # Lấy dữ liệu thực tế
-        traffic_data = History.objects.filter(
+        # Lấy dữ liệu xe vào trong 24h qua
+        entrance_data = History.objects.filter(
             time_in__gte=last_24_hours
         ).extra(
             select={'hour': 'HOUR(time_in)'}
         ).values('hour').annotate(count=Count('id'))
 
+        # Lấy dữ liệu xe ra trong 24h qua
+        exit_data = History.objects.filter(
+            time_out__gte=last_24_hours
+        ).extra(
+            select={'hour': 'HOUR(time_out)'}
+        ).values('hour').annotate(count=Count('id'))
+
         # Cập nhật số liệu thực tế vào danh sách
-        for entry in traffic_data:
+        for entry in entrance_data:
             hour = entry['hour']
             if hour in hourly_data:
-                hourly_data[hour] = entry['count']
+                hourly_data[hour]['entrance'] = entry['count']
+        
+        for entry in exit_data:
+            hour = entry['hour']
+            if hour in hourly_data:
+                hourly_data[hour]['exit'] = entry['count']
 
         # Chuyển đổi dữ liệu thành danh sách để dễ xử lý trong template
-        hourly_traffic = [{'hour': hour, 'count': count} for hour, count in hourly_data.items()]
+        hourly_traffic = [{'hour': hour, 'entrance': data['entrance'], 'exit': data['exit']} 
+                          for hour, data in hourly_data.items()]
         
         # Get vehicles that have been parked for more than 24 hours
         long_term_vehicles = History.objects.filter(
@@ -81,12 +123,14 @@ def index(request):
         
         # Get unregistered vehicles (không tìm thấy trong bảng Vehicle)
         active_histories = History.objects.filter(time_out__isnull=True)
-        plate_numbers = active_histories.values_list('plate_number', flat=True)
-        registered_plates = Vehicle.objects.filter(license_plate__in=plate_numbers).values_list('license_plate', flat=True)
         
-        # Lọc ra các biển số không đăng ký (không có trong bảng Vehicle)
-        unregistered_plates = set(plate_numbers) - set(registered_plates)
-        unregistered_vehicles = active_histories.filter(plate_number__in=unregistered_plates)[:5]
+        # Tìm những lịch sử mà vehicle_id không có trong bảng Vehicle
+        vehicle_ids = active_histories.values_list('vehicle_id', flat=True)
+        registered_vehicle_ids = Vehicle.objects.filter(id__in=vehicle_ids).values_list('id', flat=True)
+        
+        # Lọc ra các vehicle_id không đăng ký (không có trong bảng Vehicle)
+        unregistered_vehicle_ids = set(vehicle_ids) - set(registered_vehicle_ids)
+        unregistered_vehicles = active_histories.filter(vehicle_id__in=unregistered_vehicle_ids)[:5]
 
         context = {
             'parking_spaces': ParkingSpace.objects.all(),
@@ -124,16 +168,16 @@ def parked_cars(request):
             time_out__isnull=True
         ).select_related('parking_space')
         
-        # Lấy thông tin xe từ biển số trong lịch sử
-        plate_numbers = active_histories.values_list('plate_number', flat=True)
+        # Lấy thông tin xe từ vehicle_id trong lịch sử
+        vehicle_ids = active_histories.values_list('vehicle_id', flat=True)
         parked_vehicles = Vehicle.objects.filter(
-            license_plate__in=plate_numbers
+            id__in=vehicle_ids
         ).select_related('user')
         
         # Kết hợp thông tin lịch sử và xe
         for vehicle in parked_vehicles:
             # Tìm history tương ứng
-            history = next((h for h in active_histories if h.plate_number == vehicle.license_plate), None)
+            history = next((h for h in active_histories if h.vehicle_id == vehicle.id), None)
             if history:
                 # Thêm thời gian vào và vị trí đỗ vào vehicle để hiển thị
                 vehicle.entry_time = history.time_in
@@ -244,7 +288,7 @@ def exit_vehicle(request):
             
             # Cập nhật lịch sử
             history = History.objects.filter(
-                plate_number=vehicle.license_plate,
+                vehicle_id=vehicle.id,
                 time_out__isnull=True
             ).latest('time_in')
             
@@ -283,7 +327,10 @@ def vehicle_history(request):
         
         # Áp dụng các bộ lọc
         if license_plate:
-            history_query = history_query.filter(plate_number__icontains=license_plate)
+            # Tìm các vehicle_id có license_plate phù hợp
+            vehicles = Vehicle.objects.filter(license_plate__icontains=license_plate)
+            vehicle_ids = vehicles.values_list('id', flat=True)
+            history_query = history_query.filter(vehicle_id__in=vehicle_ids)
         
         if date_from:
             history_query = history_query.filter(time_in__gte=date_from)
@@ -461,13 +508,13 @@ def vehicle_detail(request, vehicle_id):
         
         # Lấy thông tin lịch sử đỗ xe hiện tại (nếu đang đỗ)
         current_parking = History.objects.filter(
-            plate_number=vehicle.license_plate,
+            vehicle_id=vehicle.id,
             time_out__isnull=True
         ).select_related('parking_space').first()
         
         # Lấy lịch sử đỗ xe trước đây
         past_parkings = History.objects.filter(
-            plate_number=vehicle.license_plate,
+            vehicle_id=vehicle.id,
             time_out__isnull=False
         ).order_by('-time_in')[:5]  # lấy 5 lần gần nhất
         
@@ -518,4 +565,230 @@ def manage_vehicles(request):
     except Exception as e:
         messages.error(request, f'Lỗi khi tải danh sách xe: {str(e)}')
         return render(request, 'menu/manage_vehicles.html', {'vehicles': []})
+
+@admin_required
+def manage_parking_spaces(request):
+    try:
+        # Lấy tham số tìm kiếm
+        search_query = request.GET.get('q', '')
+        level_filter = request.GET.get('level', '')
+        status_filter = request.GET.get('status', '')
+        
+        # Query cơ bản
+        parking_spaces = ParkingSpace.objects.all()
+        
+        # Áp dụng bộ lọc tìm kiếm và lọc
+        if search_query:
+            parking_spaces = parking_spaces.filter(
+                models.Q(space_number__icontains=search_query) |
+                models.Q(notes__icontains=search_query)
+            )
+        
+        if level_filter:
+            parking_spaces = parking_spaces.filter(level=level_filter)
+            
+        if status_filter in ['0', '1']:
+            parking_spaces = parking_spaces.filter(is_occupied=status_filter)
+        
+        # Sắp xếp theo tầng và số vị trí
+        parking_spaces = parking_spaces.order_by('level', 'space_number')
+        
+        # Đếm số lượng theo trạng thái
+        total_spaces = ParkingSpace.objects.count()
+        occupied_spaces = ParkingSpace.objects.filter(is_occupied=1).count()
+        available_spaces = total_spaces - occupied_spaces
+        
+        # Phân trang
+        page = request.GET.get('page', 1)
+        paginator = Paginator(parking_spaces, 10)  # 10 vị trí đỗ xe mỗi trang
+        spaces_page = paginator.get_page(page)
+        
+        # Chuẩn bị mảng level để hiển thị bộ lọc
+        levels = ParkingSpace.objects.values_list('level', flat=True).distinct().order_by('level')
+        
+        context = {
+            'parking_spaces': spaces_page,
+            'search_query': search_query,
+            'level_filter': level_filter,
+            'status_filter': status_filter,
+            'levels': levels,
+            'total_spaces': total_spaces,
+            'occupied_spaces': occupied_spaces,
+            'available_spaces': available_spaces
+        }
+        
+        return render(request, 'menu/manage_parking_spaces.html', context)
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error in manage_parking_spaces: {str(e)}")
+        print(f"Error details: {error_details}")
+        messages.error(request, f'Lỗi khi tải danh sách vị trí đỗ xe: {str(e)}')
+        return render(request, 'menu/manage_parking_spaces.html', {
+            'parking_spaces': [],
+            'levels': [],
+            'total_spaces': 0,
+            'occupied_spaces': 0,
+            'available_spaces': 0
+        })
+
+@admin_required
+@csrf_exempt
+def add_parking_space(request):
+    if request.method == 'POST':
+        try:
+            space_number = request.POST.get('space_number')
+            level = request.POST.get('level')
+            notes = request.POST.get('notes', '')
+            
+            # Kiểm tra xem vị trí đỗ đã tồn tại chưa
+            existing_space = ParkingSpace.objects.filter(level=level, space_number=space_number).first()
+            if existing_space:
+                messages.error(request, f'Vị trí đỗ Tầng {level} - Ô {space_number} đã tồn tại')
+                return redirect('manage_parking_spaces')
+            
+            # Tạo vị trí đỗ mới
+            ParkingSpace.objects.create(
+                id=uuid.uuid4(),
+                space_number=space_number,
+                level=level,
+                notes=notes,
+                is_occupied=0
+            )
+            
+            messages.success(request, f'Đã thêm thành công vị trí đỗ Tầng {level} - Ô {space_number}')
+            return redirect('manage_parking_spaces')
+            
+        except Exception as e:
+            messages.error(request, f'Lỗi khi thêm vị trí đỗ xe: {str(e)}')
+            return redirect('manage_parking_spaces')
+    
+    return redirect('manage_parking_spaces')
+
+@admin_required
+@csrf_exempt
+def delete_parking_space(request, space_id):
+    try:
+        # Convert string ID to UUID
+        uuid_id = parse_uuid(space_id)
+        if uuid_id is None:
+            messages.error(request, f'ID không hợp lệ')
+            return redirect('manage_parking_spaces')
+        
+        parking_space = ParkingSpace.objects.get(id=uuid_id)
+        
+        # Kiểm tra xem vị trí đỗ có đang được sử dụng không
+        if parking_space.is_occupied == 1:
+            messages.error(request, f'Không thể xóa vị trí đỗ đang có xe')
+            return redirect('manage_parking_spaces')
+        
+        # Kiểm tra xem vị trí đỗ có trong lịch sử không
+        if History.objects.filter(parking_space=parking_space, time_out__isnull=True).exists():
+            messages.error(request, f'Không thể xóa vị trí đỗ đang được sử dụng trong lịch sử')
+            return redirect('manage_parking_spaces')
+        
+        # Lưu thông tin để hiển thị thông báo
+        space_info = f'Tầng {parking_space.level} - Ô {parking_space.space_number}'
+        
+        # Xóa vị trí đỗ
+        parking_space.delete()
+        
+        messages.success(request, f'Đã xóa thành công vị trí đỗ {space_info}')
+        return redirect('manage_parking_spaces')
+        
+    except ParkingSpace.DoesNotExist:
+        messages.error(request, f'Không tìm thấy vị trí đỗ')
+        return redirect('manage_parking_spaces')
+    except Exception as e:
+        messages.error(request, f'Lỗi khi xóa vị trí đỗ: {str(e)}')
+        return redirect('manage_parking_spaces')
+
+@admin_required
+@csrf_exempt
+def update_parking_space(request, space_id):
+    if request.method == 'POST':
+        try:
+            # Convert string ID to UUID
+            uuid_id = parse_uuid(space_id)
+            if uuid_id is None:
+                messages.error(request, f'ID không hợp lệ')
+                return redirect('manage_parking_spaces')
+                
+            parking_space = ParkingSpace.objects.get(id=uuid_id)
+            
+            # Lấy dữ liệu từ form
+            space_number = request.POST.get('space_number')
+            level = request.POST.get('level')
+            notes = request.POST.get('notes', '')
+            
+            # Kiểm tra xem có vị trí đỗ khác với cùng level và space_number không
+            if ParkingSpace.objects.filter(level=level, space_number=space_number).exclude(id=uuid_id).exists():
+                messages.error(request, f'Vị trí đỗ Tầng {level} - Ô {space_number} đã tồn tại')
+                return redirect('manage_parking_spaces')
+            
+            # Cập nhật thông tin
+            parking_space.space_number = space_number
+            parking_space.level = level
+            parking_space.notes = notes
+            parking_space.save()
+            
+            messages.success(request, f'Đã cập nhật thành công vị trí đỗ Tầng {level} - Ô {space_number}')
+            return redirect('manage_parking_spaces')
+            
+        except ParkingSpace.DoesNotExist:
+            messages.error(request, f'Không tìm thấy vị trí đỗ')
+            return redirect('manage_parking_spaces')
+        except Exception as e:
+            messages.error(request, f'Lỗi khi cập nhật vị trí đỗ: {str(e)}')
+            return redirect('manage_parking_spaces')
+    
+    return redirect('manage_parking_spaces')
+
+@admin_required
+def traffic_data(request):
+    """API endpoint để lấy dữ liệu lưu lượng xe trong 24h qua"""
+    try:
+        # Lấy dữ liệu lưu lượng xe của 24h trước
+        now = timezone.now()
+        last_24_hours = now - timedelta(days=1)
+        
+        # Tạo danh sách 24 giờ với số lượng xe là 0
+        hourly_data = {}
+        for i in range(24):
+            hourly_data[i] = {'entrance': 0, 'exit': 0}
+        
+        # Lấy dữ liệu xe vào trong 24h qua
+        entrance_data = History.objects.filter(
+            time_in__gte=last_24_hours
+        ).extra(
+            select={'hour': 'HOUR(time_in)'}
+        ).values('hour').annotate(count=Count('id'))
+
+        # Lấy dữ liệu xe ra trong 24h qua
+        exit_data = History.objects.filter(
+            time_out__gte=last_24_hours
+        ).extra(
+            select={'hour': 'HOUR(time_out)'}
+        ).values('hour').annotate(count=Count('id'))
+
+        # Cập nhật số liệu thực tế vào danh sách
+        for entry in entrance_data:
+            hour = entry['hour']
+            if hour in hourly_data:
+                hourly_data[hour]['entrance'] = entry['count']
+        
+        for entry in exit_data:
+            hour = entry['hour']
+            if hour in hourly_data:
+                hourly_data[hour]['exit'] = entry['count']
+
+        # Chuyển đổi dữ liệu thành danh sách để JSON hóa
+        hourly_traffic = [{'hour': hour, 'entrance': data['entrance'], 'exit': data['exit']} 
+                          for hour, data in hourly_data.items()]
+        
+        return JsonResponse(hourly_traffic, safe=False)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 

@@ -23,8 +23,26 @@
     }
     .camera-frame img {
         width: 100%;
-        height: 100%;
-        object-fit: contain;
+        height: 100%;    // Hàm làm mới dữ liệu biểu đồ từ server
+    function refreshTrafficData() {
+        // Thực hiện Ajax request để lấy dữ liệu mới từ server
+        fetch('/webadmin/admin-home/traffic-data')
+            .then(response => response.json())
+            .then(data => {
+                // Cập nhật dữ liệu mới
+                trafficData = data;
+                
+                // Cập nhật lại biểu đồ với dữ liệu mới
+                chart.data.datasets[0].data = trafficData.map(data => data.entrance || 0);
+                chart.data.datasets[1].data = trafficData.map(data => data.exit || 0);
+                chart.update();
+                
+                console.log('Đã làm mới dữ liệu biểu đồ từ server');
+            })
+            .catch(error => {
+                console.error('Lỗi khi lấy dữ liệu biểu đồ từ server:', error);
+            });
+    } contain;
         border-radius: 8px;
     }
     .chart-container {
@@ -168,7 +186,7 @@
                 </div>
                 <div class="card-body p-2">
                     <div class="camera-frame mb-3">
-                        <img id="camera-feed" src="http://127.0.0.1:5000/video_feed" alt="Camera Feed" class="img-fluid">
+                        <img id="camera-feed" src="http://192.168.137.22:8000/video_feed" alt="Camera Feed" class="img-fluid">
                     </div>
                     <div class="camera-controls">
                         <button class="btn btn-primary btn-sm" id="startCamera">
@@ -221,7 +239,7 @@
             <!-- Traffic Chart -->
             <div class="card mb-3">
                 <div class="card-header py-2">
-                    <h6 class="mb-0"><i class="fas fa-chart-line me-1"></i>Lưu lượng xe (24h qua)</h6>
+                    <h6 class="mb-0"><i class="fas fa-chart-line me-1"></i>Lưu lượng xe vào/ra (24h qua)</h6>
                 </div>
                 <div class="card-body p-2">
                     <div class="chart-container">
@@ -255,7 +273,7 @@
                                 <tbody>
                                     {% for history in long_term_vehicles %}
                                     <tr>
-                                        <td><span class="badge bg-warning text-dark">{{ history.plate_number }}</span></td>
+                                        <td><span class="badge bg-warning text-dark">{% with vehicle=history.get_vehicle %}{{ vehicle.license_plate|default:"Không xác định" }}{% endwith %}</span></td>
                                         <td>{{ history.time_in|date:"d/m/Y H:i" }}</td>
                                     </tr>
                                     {% endfor %}
@@ -279,7 +297,7 @@
                                 <tbody>
                                     {% for history in unregistered_vehicles %}
                                     <tr>
-                                        <td><span class="badge bg-danger text-white">{{ history.plate_number }}</span></td>
+                                        <td><span class="badge bg-danger text-white">Không xác định</span></td>
                                         <td>{{ history.time_in|date:"d/m/Y H:i" }}</td>
                                     </tr>
                                     {% endfor %}
@@ -305,38 +323,87 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
     // Traffic Chart
-    const trafficData = JSON.parse('{{ hourly_traffic|safe }}');
+    let trafficData = JSON.parse('{{ hourly_traffic|safe }}');
+    const currentDate = new Date();
     const ctx = document.getElementById('trafficChart').getContext('2d');
-    new Chart(ctx, {
+    
+    // Chuẩn bị dữ liệu biểu đồ
+    const chart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: trafficData.map(data => `${data.hour}:00`),
-            datasets: [{
-                label: 'Số lượt xe',
-                data: trafficData.map(data => data.count),
-                borderColor: '#0d6efd',
-                backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                fill: true,
-                tension: 0.4
-            }]
+            datasets: [
+                {
+                    label: 'Số lượt xe vào',
+                    data: trafficData.map(data => data.entrance || 0),
+                    borderColor: '#28a745', // Màu xanh lá cây
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Số lượt xe ra',
+                    data: trafficData.map(data => data.exit || 0),
+                    borderColor: '#fd7e14', // Màu cam
+                    backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: false
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        boxWidth: 6
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            return `${tooltipItems[0].label} - ${currentDate.toLocaleDateString()}`;
+                        }
+                    }
                 }
             },
             scales: {
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        stepSize: 1
+                        stepSize: 1,
+                        precision: 0 // Chỉ hiển thị số nguyên
+                    },
+                    title: {
+                        display: true,
+                        text: 'Số lượt xe'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Giờ trong ngày'
+                    },
+                    grid: {
+                        display: false
                     }
                 }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
             }
         }
     });
@@ -344,48 +411,177 @@
     // Khởi tạo kết nối Socket.IO
     const socket = io('http://127.0.0.1:5000');
 
-    // Lắng nghe sự kiện vehicle_info từ server
+    // Lắng nghe sự kiện vehicle_info từ server (cả xe vào và xe ra)
     socket.on('vehicle_info', (data) => {
+        console.log('Received vehicle info from server:', data);
         updateVehicleInfo(data);
         
         // Cập nhật dashboard nếu có thay đổi số lượng xe
-        if (data.type === 'entrance') {
+        if (data.type === 'entrance' && data.is_registered) {
             // Xe vào bãi - tăng số xe đang đỗ, giảm chỗ trống
             updateDashboardStats(1);
+            // Cập nhật biểu đồ lưu lượng xe vào
+            updateTrafficChart('entrance');
+            // Hiển thị thông báo thêm xe
+            const message = `${data.license_plate} đã vào ${data.space_info || 'bãi đỗ'}`;
+            showNotification(message, 'primary');
         } else if (data.type === 'exit') {
             // Xe ra khỏi bãi - giảm số xe đang đỗ, tăng chỗ trống
             updateDashboardStats(-1);
+            // Cập nhật biểu đồ lưu lượng xe ra
+            updateTrafficChart('exit');
+            // Hiển thị thông báo xe ra
+            if (data.space_info) {
+                const message = `${data.license_plate} đã rời khỏi ${data.space_info}`;
+                showNotification(message, 'success');
+            }
         }
     });
+    
+    // Lắng nghe event vehicle_exit từ Socket.IO (để tương thích với mã cũ nếu cần)
+    socket.on('vehicle_exit', (exitData) => {
+        console.log('Received vehicle exit via Socket.IO:', exitData);
+        // Gửi lại thông tin qua vehicle_info với type=exit
+        if (exitData && exitData.data) {
+            const data = exitData.data;
+            data.type = 'exit'; // Đảm bảo type luôn là exit
+            updateVehicleInfo(data);
+            updateDashboardStats(-1);
+            updateTrafficChart('exit');
+            
+            // Hiển thị thông báo xe ra
+            if (data.space_info) {
+                const message = `${data.license_plate} đã rời khỏi ${data.space_info}`;
+                showNotification(message, 'success');
+            }
+        }
+    });
+    
+    // Không cần chủ động gọi đến API nữa, chỉ lắng nghe sự kiện từ Socket.IO
+    console.log('Waiting for server events via Socket.IO...');
+    
+    // Hàm hiển thị thông báo
+    function showNotification(message, type = 'info') {
+        // Tạo element thông báo
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        notification.style.top = '20px';
+        notification.style.right = '20px';
+        notification.style.zIndex = '9999';
+        notification.style.maxWidth = '400px';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Thêm vào body
+        document.body.appendChild(notification);
+        
+        // Tự động đóng sau 5 giây
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 5000);
+    }
 
     // Hàm cập nhật thông tin xe
     function updateVehicleInfo(data) {
-        // Cập nhật trạng thái
-        const statusBadge = document.getElementById('vehicle-status');
-        statusBadge.textContent = data.status;
-        statusBadge.className = 'badge ms-2 ' + 
-            (data.is_registered ? 'bg-success' : 'bg-warning');
+        if (!data) return;
+        
+        try {
+            // Cập nhật trạng thái và hiển thị xe ra/vào
+            const statusBadge = document.getElementById('vehicle-status');
+            const typeText = data.type === 'exit' ? 'Đã ra' : (data.type === 'entrance' ? 'Đã vào' : 'Chờ xe');
+            statusBadge.textContent = `${typeText} - ${data.status || (data.is_registered ? 'Đã đăng ký' : 'Chưa đăng ký')}`;
+            
+            // Phân biệt màu theo loại và trạng thái đăng ký
+            let badgeClass = 'badge ms-2 ';
+            if (data.type === 'exit') {
+                badgeClass += data.is_registered ? 'bg-info' : 'bg-warning';
+            } else if (data.type === 'entrance') {
+                badgeClass += data.is_registered ? 'bg-success' : 'bg-warning';
+            } else {
+                badgeClass += 'bg-secondary';
+            }
+            statusBadge.className = badgeClass;
 
-        // Cập nhật biển số
-        document.getElementById('plate-number').textContent = data.license_plate;
+            // Cập nhật biển số
+            document.getElementById('plate-number').textContent = data.license_plate || 'N/A';
 
-        // Cập nhật chủ xe
-        document.getElementById('owner-name').textContent = 
-            data.is_registered ? data.vehicle_owner : 'Chưa đăng ký';
+            // Cập nhật chủ xe
+            document.getElementById('owner-name').textContent = 
+                data.is_registered ? data.vehicle_owner : 'Chưa đăng ký';
 
-        // Cập nhật thời gian
-        document.getElementById('timestamp').textContent = data.entry_time;
+            // Cập nhật thời gian - hỗ trợ cả entry_time và exit_time
+            const timeDisplay = data.entry_time || data.exit_time || new Date().toLocaleString();
+            document.getElementById('timestamp').textContent = timeDisplay;
 
-        // Hiệu ứng highlight khi có thông tin mới
-        const infoContainer = document.querySelector('.border.rounded.p-3');
-        infoContainer.style.transition = 'background-color 0.3s ease';
-        infoContainer.style.backgroundColor = '#fff3cd';
-        setTimeout(() => {
-            infoContainer.style.backgroundColor = '';
-        }, 1000);
+            // Hiển thị thông tin chỗ đỗ nếu có
+            if (data.space_info) {
+                const spaceInfoElement = document.getElementById('space-info');
+                if (!spaceInfoElement) {
+                    // Tạo phần tử mới nếu chưa tồn tại
+                    const infoContainer = document.querySelector('.border.rounded.p-3');
+                    const spaceInfoDiv = document.createElement('div');
+                    spaceInfoDiv.className = 'mb-2';
+                    spaceInfoDiv.innerHTML = `
+                        <small class="text-muted">Chỗ đỗ:</small>
+                        <span class="ms-2" id="space-info">${data.space_info}</span>
+                    `;
+                    infoContainer.insertBefore(spaceInfoDiv, document.getElementById('timestamp').parentNode.nextSibling);
+                } else {
+                    spaceInfoElement.textContent = data.space_info;
+                }
+            }
+            
+            // Hiển thị thời gian đỗ xe nếu có
+            if (data.parking_duration !== undefined && data.type === 'exit') {
+                const durationElement = document.getElementById('parking-duration');
+                if (!durationElement) {
+                    // Tạo phần tử mới nếu chưa tồn tại
+                    const infoContainer = document.querySelector('.border.rounded.p-3');
+                    const durationDiv = document.createElement('div');
+                    durationDiv.className = 'mb-2';
+                    durationDiv.innerHTML = `
+                        <small class="text-muted">Thời gian đỗ:</small>
+                        <span class="ms-2" id="parking-duration">${formatDuration(data.parking_duration)}</span>
+                    `;
+                    const spaceInfoElement = document.getElementById('space-info');
+                    if (spaceInfoElement) {
+                        infoContainer.insertBefore(durationDiv, spaceInfoElement.parentNode.nextSibling);
+                    } else {
+                        infoContainer.insertBefore(durationDiv, document.getElementById('timestamp').parentNode.nextSibling);
+                    }
+                } else {
+                    durationElement.textContent = formatDuration(data.parking_duration);
+                }
+            }
 
-        // Chơi âm thanh thông báo
-        playNotificationSound();
+            // Hiệu ứng highlight khi có thông tin mới
+            const infoContainer = document.querySelector('.border.rounded.p-3');
+            infoContainer.style.transition = 'background-color 0.3s ease';
+            
+            // Màu khác nhau cho xe ra và xe vào
+            if (data.type === 'exit') {
+                infoContainer.style.backgroundColor = '#d1e7dd'; // Màu xanh nhạt cho xe ra
+            } else if (data.type === 'entrance') {
+                infoContainer.style.backgroundColor = '#fff3cd'; // Màu vàng nhạt cho xe vào
+            } else {
+                infoContainer.style.backgroundColor = '#f8f9fa'; // Màu xám nhạt cho trường hợp khác
+            }
+            
+            setTimeout(() => {
+                infoContainer.style.backgroundColor = '';
+            }, 1000);
+
+            // Chơi âm thanh thông báo
+            playNotificationSound();
+            
+            // Ghi log thành công
+            console.log(`Vehicle ${data.type} information updated successfully for ${data.license_plate}`);
+        } catch (error) {
+            console.error('Error updating vehicle info:', error);
+        }
     }
 
     // Hàm cập nhật số liệu thống kê trên dashboard
@@ -424,10 +620,99 @@
             card.style.boxShadow = '';
         }, 1000);
     }
+    
+    // Hàm định dạng thời gian đỗ xe
+    function formatDuration(hours) {
+        if (hours === undefined) return 'Không xác định';
+        
+        if (hours < 1) {
+            // Dưới 1 giờ, hiển thị theo phút
+            const minutes = Math.round(hours * 60);
+            return `${minutes} phút`;
+        } else if (hours < 24) {
+            // Dưới 24 giờ, hiển thị giờ và phút
+            const wholeHours = Math.floor(hours);
+            const minutes = Math.round((hours - wholeHours) * 60);
+            if (minutes > 0) {
+                return `${wholeHours} giờ ${minutes} phút`;
+            } else {
+                return `${wholeHours} giờ`;
+            }
+        } else {
+            // Từ 24 giờ trở lên, hiển thị ngày và giờ
+            const days = Math.floor(hours / 24);
+            const remainingHours = Math.round(hours % 24);
+            if (remainingHours > 0) {
+                return `${days} ngày ${remainingHours} giờ`;
+            } else {
+                return `${days} ngày`;
+            }
+        }
+    }
+    
+    // Hàm cập nhật biểu đồ lưu lượng xe
+    function updateTrafficChart(type) {
+        // Lấy giờ hiện tại
+        const currentHour = new Date().getHours();
+        
+        // Tìm index của giờ hiện tại trong datasets
+        const hourIndex = trafficData.findIndex(data => parseInt(data.hour) === currentHour);
+        
+        if (hourIndex !== -1) {
+            // Cập nhật dữ liệu biểu đồ
+            if (type === 'entrance') {
+                // Tăng số lượng xe vào trong giờ hiện tại
+                if (!trafficData[hourIndex].entrance) {
+                    trafficData[hourIndex].entrance = 1;
+                } else {
+                    trafficData[hourIndex].entrance++;
+                }
+                chart.data.datasets[0].data[hourIndex] = trafficData[hourIndex].entrance;
+            } else if (type === 'exit') {
+                // Tăng số lượng xe ra trong giờ hiện tại
+                if (!trafficData[hourIndex].exit) {
+                    trafficData[hourIndex].exit = 1;
+                } else {
+                    trafficData[hourIndex].exit++;
+                }
+                chart.data.datasets[1].data[hourIndex] = trafficData[hourIndex].exit;
+            }
+            
+            // Cập nhật biểu đồ
+            chart.update();
+            console.log(`Đã cập nhật biểu đồ: ${type} tại giờ ${currentHour}:00`);
+        } else {
+            console.log(`Không tìm thấy dữ liệu cho giờ ${currentHour}:00 trong biểu đồ`);
+        }
+    }
+    
+    // Hàm làm mới dữ liệu biểu đồ từ server
+    function refreshTrafficData() {
+        // Thực hiện Ajax request để lấy dữ liệu mới từ server
+        fetch('/webadmin/admin-home/traffic-data/')
+            .then(response => response.json())
+            .then(data => {
+                // Cập nhật dữ liệu mới
+                trafficData = data;
+                
+                // Cập nhật lại biểu đồ với dữ liệu mới
+                chart.data.datasets[0].data = trafficData.map(data => data.entrance || 0);
+                chart.data.datasets[1].data = trafficData.map(data => data.exit || 0);
+                chart.update();
+                
+                console.log('Đã làm mới dữ liệu biểu đồ từ server');
+            })
+            .catch(error => {
+                console.error('Lỗi khi lấy dữ liệu biểu đồ từ server:', error);
+            });
+    }
+    
+    // Thiết lập làm mới dữ liệu định kỳ từ server (mỗi 5 phút)
+    setInterval(refreshTrafficData, 5 * 60 * 1000);
 
     // Hàm phát âm thanh thông báo
     function playNotificationSound() {
-        const audio = new Audio('/sta tic/notification.mp3');
+        const audio = new Audio('/static/notification.mp3');
         audio.volume = 0.5;
         audio.play().catch(error => {
             console.log('Error playing notification sound:', error);
@@ -440,6 +725,9 @@
         const vehicleStatus = document.getElementById('vehicle-status');
         vehicleStatus.textContent = 'Đã kết nối - Chờ xe';
         vehicleStatus.className = 'badge bg-success ms-2';
+        
+        // Gọi hàm làm mới dữ liệu ngay khi kết nối
+        refreshTrafficData();
     });
 
     socket.on('disconnect', () => {
