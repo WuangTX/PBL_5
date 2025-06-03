@@ -31,20 +31,16 @@ def admin_required(view_func):
 
 def home(request):
     """Xử lý trang chủ của ứng dụng"""
-    # Đối với URL gốc (127.0.0.1:8000), luôn chuyển hướng đến trang đăng nhập
-    if not request.path.startswith('/account/'):
-        return redirect('login')
-        
     # Nếu người dùng đã đăng nhập, chuyển hướng tùy theo vai trò
     if 'user_id' in request.session:
         user_role = request.session.get('user_role')
         if user_role == 'admin':
-            return redirect('/webadmin/admin-home')  # Trang chủ admin
+            return redirect('/webadmin/admin-home/')  # Trang chủ admin
         else:
-            return redirect('/webuser/')  # Trang chủ người dùng
+            return redirect('/webuser/user-home/')  # Trang chủ người dùng
     
     # Nếu chưa đăng nhập, chuyển đến trang đăng nhập
-    return redirect('login')
+    return redirect('/webuser/user-home/')
 
 def login(request):
     """Xử lý đăng nhập người dùng"""
@@ -53,9 +49,9 @@ def login(request):
         user_role = request.session.get('user_role')
         if user_role == 'admin':
             return redirect('/webadmin/admin-home')  # Trang chủ admin - corrected URL
-        else:
-            return redirect('/webuser/')  # Trang chủ người dùng
-            
+        elif user_role == 'customer':
+            return redirect('/webuser/user-home')  # Trang chủ người dùng
+
     if request.method == 'POST':
         identifier = request.POST.get('identifier')
         password = request.POST.get('password')
@@ -84,7 +80,7 @@ def login(request):
             if user.role == 'admin':
                 return redirect('/webadmin/admin-home')  # Trang chủ admin - corrected URL
             else:
-                return redirect('/webuser/')  # Trang chủ người dùng
+                return redirect('/webuser/user-home')  # Trang chủ người dùng
         else:
             messages.error(request, 'Email/số điện thoại hoặc mật khẩu không đúng!')
     

@@ -1,0 +1,103 @@
+{%  extends "app/base.html" %}
+{% load static %}
+
+
+{% block index-content %}
+<section class="hero">
+    <div class="container">
+        <div class="hero-content">
+            <h1>Chào Mừng Đến Với Smart Parking</h1>
+            <p>Hệ thống quản lý bãi đỗ xe thông minh, tiện lợi và an toàn</p>
+            <div class="hero-buttons">
+                <a href="#features" class="btn btn-primary">Tìm Hiểu Thêm</a>
+                {% if not user %}
+                    <a href="{% url 'register' %}" class="btn btn-secondary">Đăng Ký Ngay</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="features" class="features">
+    <div class="container">
+        <h2 class="section-title">Tính Năng Nổi Bật</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-history"></i>
+                </div>
+                <h3>Theo Dõi Lịch Sử</h3>
+                <p>Dễ dàng xem lịch sử ra vào của xe và thời gian đỗ xe chi tiết</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-credit-card"></i>
+                </div>
+                <h3>Thanh Toán Trực Tuyến</h3>
+                <p>Thanh toán phí đỗ xe nhanh chóng và an toàn qua nhiều phương thức</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-bell"></i>
+                </div>
+                <h3>Thông Báo Thông Minh</h3>
+                <p>Nhận thông báo khi xe vào/ra và nhắc nhở thanh toán phí</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h3>An Toàn & Bảo Mật</h3>
+                <p>Hệ thống giám sát 24/7 đảm bảo an toàn cho xe của bạn</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="stats">
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <h3>500+</h3>
+                <p>Vị trí đỗ xe</p>
+            </div>
+            <div class="stat-item">
+                <h3>10.000+</h3>
+                <p>Người dùng hài lòng</p>
+            </div>
+            <div class="stat-item">
+                <h3>24/7</h3>
+                <p>Hỗ trợ khách hàng</p>
+            </div>
+            <div class="stat-item">
+                <h3>99.9%</h3>
+                <p>Độ tin cậy</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="cta">
+    <div class="marquee-container">
+        <div class="marquee">
+            🚗 Hiện còn <span id="slot-count">{{ slot_count }}</span> chỗ trống trong bãi! Nhanh tay đặt chỗ ngay! 🚗
+        </div>
+    </div>
+    <div class="container">
+        {% if not user %}
+        <h2>Bắt Đầu Sử Dụng Smart Parking Ngay Hôm Nay</h2>
+        <p>Đăng ký tài khoản để trải nghiệm dịch vụ đỗ xe thông minh</p>
+        <a href="{% url "register" %}" class="btn btn-primary">Đăng Ký Ngay</a>
+    {% else %}
+        <h2>Chào mừng trở lại, {{ user.name }}!</h2>
+        <p>
+            Cảm ơn bạn đã tin tưởng sử dụng Smart Parking.<br>
+            Hệ thống của chúng tôi giúp bạn quản lý chỗ đỗ xe dễ dàng, thanh toán tiện lợi và nhận thông báo tức thì về tình trạng xe.<br>
+            <strong>Hãy khám phá các tính năng nổi bật:</strong>
+        </p>
+        
+    {% endif %}
+    </div>
+    
+</section>
+{% endblock index-content %}

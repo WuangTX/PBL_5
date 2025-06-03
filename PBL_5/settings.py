@@ -36,8 +36,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',  # Thêm humanize để sử dụng các hàm như naturalday
     'webadmin.apps.WebAdminConfig',
     'account.apps.AccountConfig',
+    'webuser.user.apps.UserConfig',
+    'webuser.history.apps.HistoryConfig', 
+    'webuser.payment.apps.PaymentConfig',
+    'webuser.register.apps.RegisterConfig',
 ]
 
 MIDDLEWARE = [

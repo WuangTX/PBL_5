@@ -8,6 +8,7 @@ urlpatterns = [
     path('', include('account.urls')),  # URLs gốc vẫn sử dụng account app
     path('account/', include('account.urls')),  # Thêm prefix account/ cho account app
     path('webadmin/', include('webadmin.urls')),
+    path('webuser/', include('webuser.urls')),
 
 ]
 
