@@ -39,7 +39,7 @@ def home(request):
         else:
             return redirect('/webuser/user-home/')  # Trang chủ người dùng
     
-    # Nếu chưa đăng nhập, chuyển đến trang đăng nhập
+    # Nếu chưa đăng nhập, chuyển đến trang chủ chưa đăng nhập của user
     return redirect('/webuser/user-home/')
 
 def login(request):

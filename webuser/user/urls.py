@@ -5,7 +5,7 @@ from webuser.payment import views as payment_views
 from webuser.register import views as register_views
 
 urlpatterns = [
-    path('user-home/', views.index, name='index'),
+    path('user-home/', views.index, name='index-user'),
     path('history/', history_views.history_view, name='history'),
     path('history/search/', history_views.search_history_ajax, name='search_history_ajax'), 
     path('payment/', payment_views.payment_view, name='payment'),
