@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+
+{% block title %}Lịch sử giao dịch - Parking Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        color: white;
+        margin-bottom: 2rem;
+    }
+    
+    .transaction-deposit {
+        border-left: 4px solid #28a745;
+    }
+    
+    .transaction-payment {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .transaction-admin {
+        border-left: 4px solid #007bff;
+    }
+    
+    .transaction-row:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .amount-positive {
+        color: #28a745;
+        font-weight: bold;
+    }
+    
+    .amount-negative {
+        color: #dc3545;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-history me-2"></i>Lịch sử giao dịch</h2>
+        <a href="{% url 'financial_overview' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i> Quay lại tổng quan
+        </a>
+    </div>
+
+    <!-- Bộ lọc -->
+    <div class="filter-container">
+        <h4 class="mb-3"><i class="fas fa-filter me-2"></i>Bộ lọc</h4>
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Loại giao dịch:</label>
+                <select name="type" class="form-select">
+                    <option value="">Tất cả</option>
+                    {% for type in transaction_types %}
+                    <option value="{{ type }}" {% if type == transaction_type %}selected{% endif %}>
+                        {% if type == 'DEPOSIT' %}Nạp tiền
+                        {% elif type == 'PARKING_PAYMENT' %}Thanh toán đỗ xe
+                        {% elif type == 'ADMIN_ADD' %}Admin nạp tiền
+                        {% elif type == 'ADMIN_SUBTRACT' %}Admin trừ tiền
+                        {% else %}{{ type }}
+                        {% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">Từ ngày:</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">Đến ngày:</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">Tìm kiếm người dùng:</label>
+                <input type="text" name="search" class="form-control" value="{{ search_query }}" placeholder="Tên hoặc SĐT...">
+            </div>
+            
+            <div class="col-12">
+                <button type="submit" class="btn btn-light me-2">
+                    <i class="fas fa-search me-1"></i> Lọc
+                </button>
+                <a href="{% url 'transaction_history' %}" class="btn btn-outline-light">
+                    <i class="fas fa-refresh me-1"></i> Xóa bộ lọc
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Danh sách giao dịch -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>Danh sách giao dịch 
+                <span class="badge bg-primary">{{ page_obj.paginator.count }} giao dịch</span>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if page_obj %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Người dùng</th>
+                            <th>Loại giao dịch</th>
+                            <th>Số tiền</th>
+                            <th>Phương thức</th>
+                            <th>Trạng thái</th>
+                            <th>Thời gian</th>
+                            <th>Liên kết</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in page_obj %}
+                        <tr class="transaction-row {% if 'ADD' in transaction.transaction_type or 'DEPOSIT' in transaction.transaction_type %}transaction-deposit{% elif 'PAYMENT' in transaction.transaction_type %}transaction-payment{% else %}transaction-admin{% endif %}">
+                            <td>
+                                <span class="badge bg-secondary">#{{ transaction.id }}</span>
+                            </td>
+                            <td>
+                                <div class="fw-bold">{{ transaction.user.name }}</div>
+                                <small class="text-muted">{{ transaction.user.phone_number }}</small>
+                            </td>
+                            <td>
+                                <span class="badge {% if 'ADD' in transaction.transaction_type or 'DEPOSIT' in transaction.transaction_type %}bg-success{% elif 'PAYMENT' in transaction.transaction_type %}bg-danger{% else %}bg-info{% endif %}">
+                                    {% if transaction.transaction_type == 'DEPOSIT' %}Nạp tiền
+                                    {% elif transaction.transaction_type == 'PARKING_PAYMENT' %}Thanh toán đỗ xe
+                                    {% elif transaction.transaction_type == 'ADMIN_ADD' %}Admin nạp tiền
+                                    {% elif transaction.transaction_type == 'ADMIN_SUBTRACT' %}Admin trừ tiền
+                                    {% else %}{{ transaction.transaction_type }}
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="{% if transaction.amount > 0 %}amount-positive{% else %}amount-negative{% endif %}">
+                                    {% if transaction.amount > 0 %}+{% endif %}{{ transaction.amount|floatformat:0 }}đ
+                                </span>
+                            </td>
+                            <td>
+                                {% if transaction.payment_method == 'ADMIN_ADJUSTMENT' %}
+                                    <span class="badge bg-warning">Điều chỉnh Admin</span>
+                                {% elif transaction.payment_method == 'ADMIN_CONFIRM' %}
+                                    <span class="badge bg-info">Xác nhận Admin</span>
+                                {% else %}
+                                    {{ transaction.payment_method|default:"N/A" }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge {% if transaction.status == 'COMPLETED' %}bg-success{% elif transaction.status == 'PENDING' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {% if transaction.status == 'COMPLETED' %}Hoàn thành
+                                    {% elif transaction.status == 'PENDING' %}Đang xử lý
+                                    {% elif transaction.status == 'FAILED' %}Thất bại
+                                    {% else %}{{ transaction.status }}
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <div>{{ transaction.created_at|date:"d/m/Y" }}</div>
+                                <small class="text-muted">{{ transaction.created_at|date:"H:i:s" }}</small>
+                            </td>
+                            <td>
+                                {% if transaction.payment %}
+                                    <a href="{% url 'payment_management' %}?search={{ transaction.payment.id }}" 
+                                       class="btn btn-sm btn-outline-info"
+                                       title="Xem thanh toán liên quan">
+                                        <i class="fas fa-link"></i>
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">Không có giao dịch nào</h4>
+                <p class="text-muted">Thử thay đổi bộ lọc để xem kết quả khác</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Phân trang -->
+    {% if page_obj.has_other_pages %}
+    <div class="d-flex justify-content-center mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if transaction_type %}&type={{ transaction_type }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if transaction_type %}&type={{ transaction_type }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for page_num in page_obj.paginator.page_range %}
+                {% if page_num == page_obj.number %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_num }}{% if transaction_type %}&type={{ transaction_type }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">{{ page_num }}</a>
+                </li>
+                {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if transaction_type %}&type={{ transaction_type }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if transaction_type %}&type={{ transaction_type }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

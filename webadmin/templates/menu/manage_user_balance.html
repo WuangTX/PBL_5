@@ -1,0 +1,326 @@
+{% extends 'base.html' %}
+
+{% block title %}Quản lý số dư tài khoản - Parking Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-balance-card {
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    
+    .user-balance-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .balance-amount {
+        font-size: 1.25rem;
+        font-weight: bold;
+    }
+    
+    .balance-positive {
+        color: #28a745;
+    }
+    
+    .balance-zero {
+        color: #6c757d;
+    }
+    
+    .balance-negative {
+        color: #dc3545;
+    }
+    
+    .search-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        color: white;
+        margin-bottom: 2rem;
+    }
+    
+    .search-form {
+        max-width: 500px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-wallet me-2"></i>Quản lý số dư tài khoản</h2>
+        <a href="{% url 'financial_overview' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i> Quay lại tổng quan
+        </a>
+    </div>
+
+    <!-- Tìm kiếm -->
+    <div class="search-container">
+        <h4 class="mb-3"><i class="fas fa-search me-2"></i>Tìm kiếm người dùng</h4>
+        <form method="GET" class="search-form">
+            <div class="input-group">
+                <input type="text" 
+                       class="form-control form-control-lg" 
+                       name="search" 
+                       value="{{ search_query }}" 
+                       placeholder="Nhập tên, số điện thoại hoặc email...">
+                <button type="submit" class="btn btn-light btn-lg">
+                    <i class="fas fa-search"></i>
+                </button>
+                {% if search_query %}
+                <a href="{% url 'manage_user_balance' %}" class="btn btn-outline-light btn-lg">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Danh sách người dùng -->
+    <div class="row">
+        {% for user in page_obj %}
+        <div class="col-lg-6 col-xl-4 mb-4">
+            <div class="card user-balance-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="card-title mb-1">{{ user.name }}</h5>
+                            <div class="text-muted small">
+                                <i class="fas fa-phone me-1"></i>{{ user.phone_number }}
+                            </div>
+                            {% if user.email %}
+                            <div class="text-muted small">
+                                <i class="fas fa-envelope me-1"></i>{{ user.email }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <span class="badge bg-primary">{{ user.role|title }}</span>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-muted">Số dư hiện tại:</span>
+                        <span class="balance-amount {% if user.balance > 0 %}balance-positive{% elif user.balance == 0 %}balance-zero{% else %}balance-negative{% endif %}">
+                            {{ user.balance|floatformat:0 }}đ
+                        </span>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-success flex-fill" 
+                                onclick="showAdjustModal('{{ user.id }}', '{{ user.name }}', 'add', {{ user.balance }})">
+                            <i class="fas fa-plus me-1"></i> Nạp tiền
+                        </button>
+                        <button class="btn btn-sm btn-warning flex-fill" 
+                                onclick="showAdjustModal('{{ user.id }}', '{{ user.name }}', 'subtract', {{ user.balance }})">
+                            <i class="fas fa-minus me-1"></i> Trừ tiền
+                        </button>
+                        <a href="{% url 'user_financial_detail' user.id %}" class="btn btn-sm btn-info">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">Không tìm thấy người dùng nào</h4>
+                {% if search_query %}
+                <p class="text-muted">Không có kết quả cho từ khóa "{{ search_query }}"</p>
+                <a href="{% url 'manage_user_balance' %}" class="btn btn-primary">Xem tất cả</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Phân trang -->
+    {% if page_obj.has_other_pages %}
+    <div class="d-flex justify-content-center mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for page_num in page_obj.paginator.page_range %}
+                {% if page_num == page_obj.number %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_num }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ page_num }}</a>
+                </li>
+                {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal điều chỉnh số dư -->
+<div class="modal fade" id="adjustBalanceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="adjustModalTitle">Điều chỉnh số dư</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="adjustBalanceForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Người dùng:</label>
+                        <div class="fw-bold" id="adjustUserName"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Số dư hiện tại:</label>
+                        <div class="fw-bold text-primary" id="adjustCurrentBalance"></div>
+                    </div>
+                      <div class="mb-3">
+                        <label for="adjustAmount" class="form-label">Số tiền:</label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="adjustAmount" 
+                                   name="amount" 
+                                   min="1" 
+                                   step="1" 
+                                   required>
+                            <span class="input-group-text">VNĐ</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="adjustReason" class="form-label">Lý do:</label>
+                        <textarea class="form-control" 
+                                  id="adjustReason" 
+                                  name="reason" 
+                                  rows="3" 
+                                  placeholder="Nhập lý do điều chỉnh..." 
+                                  required></textarea>
+                    </div>
+                    
+                    <input type="hidden" id="adjustUserId" name="user_id">
+                    <input type="hidden" id="adjustType" name="adjustment_type">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary" id="adjustSubmitBtn">Xác nhận</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let adjustModal;
+
+document.addEventListener('DOMContentLoaded', function() {
+    adjustModal = new bootstrap.Modal(document.getElementById('adjustBalanceModal'));
+});
+
+function showAdjustModal(userId, userName, type, currentBalance) {
+    document.getElementById('adjustUserId').value = userId;
+    document.getElementById('adjustType').value = type;
+    document.getElementById('adjustUserName').textContent = userName;
+    document.getElementById('adjustCurrentBalance').textContent = currentBalance.toLocaleString() + 'đ';
+    
+    const title = type === 'add' ? 'Nạp tiền vào tài khoản' : 'Trừ tiền từ tài khoản';
+    document.getElementById('adjustModalTitle').textContent = title;
+    
+    const submitBtn = document.getElementById('adjustSubmitBtn');
+    submitBtn.textContent = type === 'add' ? 'Nạp tiền' : 'Trừ tiền';
+    submitBtn.className = type === 'add' ? 'btn btn-success' : 'btn btn-warning';
+    
+    // Reset form
+    document.getElementById('adjustAmount').value = '';
+    document.getElementById('adjustReason').value = '';
+    
+    adjustModal.show();
+}
+
+document.getElementById('adjustBalanceForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const userId = formData.get('user_id');
+    const submitBtn = document.getElementById('adjustSubmitBtn');
+    
+    // Disable submit button
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Đang xử lý...';
+    
+    try {
+        const response = await fetch(`/webadmin/user/${userId}/adjust-balance/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(data.message);
+            adjustModal.hide();
+            location.reload();
+        } else {
+            alert(data.error || 'Có lỗi xảy ra');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Có lỗi xảy ra khi điều chỉnh số dư');
+    } finally {
+        // Re-enable submit button
+        submitBtn.disabled = false;
+        const type = document.getElementById('adjustType').value;
+        submitBtn.innerHTML = type === 'add' ? 'Nạp tiền' : 'Trừ tiền';
+    }
+});
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

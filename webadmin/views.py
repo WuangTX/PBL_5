@@ -4,15 +4,21 @@ from django.http import HttpResponse, JsonResponse
 from django.db import models
 import requests
 from .models import ParkingSpace, History, Vehicle
-from account.models import User
+from account.models import User, TransactionHistory
+from .models import Payment
 from django.contrib import messages
 from django.contrib.auth.hashers import make_password, check_password
-from django.db.models import Count
+from django.db.models import Count, Sum, Q
 from django.utils import timezone
 from datetime import timedelta
 import uuid
 import json
+import time
+import traceback
 from django.core.paginator import Paginator
+import os
+from django.conf import settings
+from decimal import Decimal
 
 # Helper function for UUID conversion
 def parse_uuid(uuid_str):
@@ -299,6 +305,25 @@ def exit_vehicle(request):
             history.time_out = timezone.now()
             history.save()
             
+            # Tạo Payment record tự động sau khi xe xuất
+            try:
+                # Kiểm tra xem đã có Payment cho history này chưa
+                existing_payment = Payment.objects.filter(history=history).first()
+                if not existing_payment:
+                    # Tính phí đỗ xe
+                    parking_fee = history.calculate_fee()
+                    if parking_fee is not None and parking_fee > 0:
+                        # Tạo Payment record mới
+                        Payment.objects.create(
+                            history=history,
+                            fee=Decimal(str(parking_fee)),
+                            status=False  # Chưa thanh toán
+                        )
+                        print(f"Created payment record for history {history.id} with fee {parking_fee}")
+            except Exception as payment_error:
+                print(f"Error creating payment record: {str(payment_error)}")
+                # Không dừng quá trình xuất xe nếu tạo payment lỗi
+            
             # Cập nhật trạng thái vị trí đỗ xe (nếu có)
             if parking_space:
                 parking_space.is_occupied = 0  # Đánh dấu là không còn xe đỗ
@@ -540,7 +565,7 @@ def manage_vehicles(request):
         search_query = request.GET.get('q', '')
         
         # Query cơ bản
-        vehicles = Vehicle.objects.select_related('user').all()
+        vehicles = Vehicle.objects.select_related('user').all().order_by('-created_at')
         
         # Áp dụng bộ lọc tìm kiếm
         if search_query:
@@ -791,4 +816,341 @@ def traffic_data(request):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+@admin_required
+@csrf_exempt
+def update_vehicle_image(request, vehicle_id):
+    """Cập nhật hoặc thêm ảnh xe"""
+    if request.method == 'POST':
+        try:
+            # Lấy thông tin xe
+            vehicle = Vehicle.objects.get(id=vehicle_id)
+            
+            # Kiểm tra xem có file ảnh được gửi lên không
+            if 'vehicle_image' not in request.FILES:
+                return JsonResponse({'error': 'Không có file ảnh được chọn'}, status=400)
+            
+            image = request.FILES['vehicle_image']
+            
+            # Xóa ảnh cũ nếu có
+            if vehicle.image_path:
+                old_image_path = os.path.join(settings.MEDIA_ROOT, vehicle.image_path)
+                if os.path.exists(old_image_path):
+                    os.remove(old_image_path)
+            
+            # Tạo thư mục lưu ảnh nếu chưa tồn tại
+            upload_dir = os.path.join(settings.MEDIA_ROOT, 'vehicles')
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            # Tạo tên file duy nhất dựa trên biển số xe và timestamp
+            import time
+            filename = f"{vehicle.license_plate.replace(' ', '_')}_{int(time.time())}{os.path.splitext(image.name)[1]}"
+            file_path = os.path.join(upload_dir, filename)
+            
+            # Lưu file
+            with open(file_path, 'wb+') as destination:
+                for chunk in image.chunks():
+                    destination.write(chunk)
+            
+            # Cập nhật đường dẫn ảnh trong database
+            vehicle.image_path = f"vehicles/{filename}"
+            vehicle.save()
+            
+            return JsonResponse({
+                'message': 'Cập nhật ảnh xe thành công',
+                'image_url': f'/media/{vehicle.image_path}'
+            })
+            
+        except Vehicle.DoesNotExist:
+            return JsonResponse({'error': 'Không tìm thấy thông tin xe'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': f'Lỗi khi cập nhật ảnh xe: {str(e)}'}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+# ===== QUẢN LÝ TÀI CHÍNH =====
+
+@login_required
+@admin_required  
+def financial_overview(request):
+    """Tổng quan tài chính"""
+    # Thống kê tài chính
+    total_revenue = Payment.objects.filter(status=True).aggregate(Sum('fee'))['fee__sum'] or 0
+    pending_payments = Payment.objects.filter(status=False).count()
+    total_users_balance = User.objects.aggregate(Sum('balance'))['balance__sum'] or 0
+    
+    # Doanh thu theo tháng (6 tháng gần nhất)
+    from datetime import datetime
+    import calendar
+    monthly_revenue = []
+    for i in range(6):
+        month = (datetime.now().month - i - 1) % 12 + 1
+        year = datetime.now().year
+        if month > datetime.now().month:
+            year -= 1
+            
+        month_revenue = Payment.objects.filter(
+            status=True,
+            created_at__year=year,
+            created_at__month=month
+        ).aggregate(Sum('fee'))['fee__sum'] or 0
+        
+        monthly_revenue.append({
+            'month': f"{calendar.month_name[month]} {year}",
+            'revenue': float(month_revenue)
+        })
+    
+    monthly_revenue.reverse()
+    
+    # Giao dịch gần đây
+    recent_transactions = TransactionHistory.objects.select_related('user').order_by('-created_at')[:10]
+    
+    # Thanh toán chưa xử lý
+    pending_payments_list = Payment.objects.filter(status=False).select_related('history__vehicle__user').order_by('-created_at')[:10]
+    
+    context = {
+        'total_revenue': total_revenue,
+        'pending_payments_count': pending_payments,
+        'total_users_balance': total_users_balance,
+        'monthly_revenue': monthly_revenue,
+        'recent_transactions': recent_transactions,
+        'pending_payments': pending_payments_list,
+    }
+    
+    return render(request, 'menu/financial_overview.html', context)
+
+@login_required
+@admin_required  
+def manage_user_balance(request):
+    """Quản lý số dư tài khoản người dùng"""
+    search_query = request.GET.get('search', '')
+    
+    # Tìm kiếm người dùng
+    users = User.objects.all()
+    if search_query:
+        users = users.filter(
+            Q(name__icontains=search_query) |
+            Q(phone_number__icontains=search_query) |
+            Q(email__icontains=search_query)
+        )
+    
+    # Phân trang
+    paginator = Paginator(users.order_by('-created_at'), 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'menu/manage_user_balance.html', context)
+
+@login_required
+@admin_required
+def adjust_user_balance(request, user_id):
+    """Điều chỉnh số dư tài khoản người dùng"""
+    if request.method == 'POST':
+        try:
+            user = User.objects.get(id=user_id)
+            adjustment_type = request.POST.get('adjustment_type')  # 'add' hoặc 'subtract'
+            amount = Decimal(request.POST.get('amount', '0'))
+            reason = request.POST.get('reason', '')
+            
+            if amount <= 0:
+                return JsonResponse({'error': 'Số tiền phải lớn hơn 0'}, status=400)
+            
+            # Điều chỉnh số dư
+            if adjustment_type == 'add':
+                user.balance += amount
+                transaction_type = 'ADMIN_ADD'
+                transaction_amount = amount
+            elif adjustment_type == 'subtract':
+                if user.balance < amount:
+                    return JsonResponse({'error': 'Số dư không đủ để trừ'}, status=400)
+                user.balance -= amount
+                transaction_type = 'ADMIN_SUBTRACT'
+                transaction_amount = -amount
+            else:
+                return JsonResponse({'error': 'Loại điều chỉnh không hợp lệ'}, status=400)
+            
+            user.save()
+            
+            # Tạo giao dịch
+            TransactionHistory.objects.create(
+                user=user,
+                transaction_type=transaction_type,
+                amount=transaction_amount,
+                payment_method='ADMIN_ADJUSTMENT',
+                status='COMPLETED'
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'new_balance': float(user.balance),
+                'message': f'Đã điều chỉnh số dư thành công. Lý do: {reason}'
+            })
+            
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'Người dùng không tồn tại'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Phương thức không được hỗ trợ'}, status=405)
+
+@login_required
+@admin_required
+def transaction_history(request):
+    """Lịch sử giao dịch"""
+    # Lọc theo loại giao dịch
+    transaction_type = request.GET.get('type', '')
+    search_query = request.GET.get('search', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    transactions = TransactionHistory.objects.select_related('user', 'payment').all()
+    
+    # Áp dụng các bộ lọc
+    if transaction_type:
+        transactions = transactions.filter(transaction_type=transaction_type)
+    
+    if search_query:
+        transactions = transactions.filter(
+            Q(user__name__icontains=search_query) |
+            Q(user__phone_number__icontains=search_query)
+        )
+    
+    if date_from:
+        transactions = transactions.filter(created_at__date__gte=date_from)
+    
+    if date_to:
+        transactions = transactions.filter(created_at__date__lte=date_to)
+    
+    # Phân trang
+    paginator = Paginator(transactions.order_by('-created_at'), 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Danh sách loại giao dịch để hiển thị trong dropdown
+    transaction_types = TransactionHistory.objects.values_list('transaction_type', flat=True).distinct()
+    
+    context = {
+        'page_obj': page_obj,
+        'transaction_type': transaction_type,
+        'search_query': search_query,
+        'date_from': date_from,
+        'date_to': date_to,
+        'transaction_types': transaction_types,
+    }
+    
+    return render(request, 'menu/transaction_history.html', context)
+
+@login_required
+@admin_required
+def payment_management(request):
+    """Quản lý thanh toán"""
+    status_filter = request.GET.get('status', '')
+    search_query = request.GET.get('search', '')
+    
+    payments = Payment.objects.select_related('history__vehicle__user').all()
+    
+    # Áp dụng bộ lọc
+    if status_filter == 'paid':
+        payments = payments.filter(status=True)
+    elif status_filter == 'unpaid':
+        payments = payments.filter(status=False)
+    
+    if search_query:
+        payments = payments.filter(
+            Q(history__vehicle__license_plate__icontains=search_query) |
+            Q(history__vehicle__user__name__icontains=search_query) |
+            Q(history__vehicle__user__phone_number__icontains=search_query)
+        )
+    
+    # Phân trang
+    paginator = Paginator(payments.order_by('-created_at'), 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'status_filter': status_filter,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'menu/payment_management.html', context)
+
+@login_required
+@admin_required
+def mark_payment_paid(request, payment_id):
+    """Đánh dấu thanh toán đã hoàn thành"""
+    if request.method == 'POST':
+        try:
+            payment = Payment.objects.get(id=payment_id)
+            
+            if payment.status:
+                return JsonResponse({'error': 'Thanh toán này đã được xử lý'}, status=400)
+            
+            # Đánh dấu đã thanh toán
+            payment.status = True
+            payment.save()
+            
+            # Tạo giao dịch
+            user = payment.history.vehicle.user
+            TransactionHistory.objects.create(
+                user=user,
+                transaction_type='PARKING_PAYMENT',
+                amount=-payment.fee,
+                payment_method='ADMIN_CONFIRM',
+                status='COMPLETED',
+                payment=payment
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Đã xác nhận thanh toán thành công'
+            })
+            
+        except Payment.DoesNotExist:
+            return JsonResponse({'error': 'Thanh toán không tồn tại'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Phương thức không được hỗ trợ'}, status=405)
+
+@login_required
+@admin_required
+def user_financial_detail(request, user_id):
+    """Chi tiết tài chính của người dùng"""
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        messages.error(request, 'Người dùng không tồn tại')
+        return redirect('manage_user_balance')
+    
+    # Lịch sử giao dịch của người dùng
+    transactions = TransactionHistory.objects.filter(user=user).order_by('-created_at')
+    
+    # Thống kê
+    total_deposited = transactions.filter(
+        transaction_type__in=['ADMIN_ADD', 'DEPOSIT']
+    ).aggregate(Sum('amount'))['amount__sum'] or 0
+    
+    total_spent = abs(transactions.filter(
+        transaction_type__in=['PARKING_PAYMENT', 'ADMIN_SUBTRACT']
+    ).aggregate(Sum('amount'))['amount__sum'] or 0)
+    
+    # Phân trang giao dịch
+    paginator = Paginator(transactions, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'user': user,
+        'page_obj': page_obj,
+        'total_deposited': total_deposited,
+        'total_spent': total_spent,
+    }
+    
+    return render(request, 'menu/user_financial_detail.html', context)
 

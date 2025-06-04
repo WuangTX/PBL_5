@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+
+{% block title %}Quản lý thanh toán - Parking Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        color: white;
+        margin-bottom: 2rem;
+    }
+    
+    .payment-unpaid {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .payment-paid {
+        border-left: 4px solid #28a745;
+    }
+    
+    .payment-row:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .vehicle-plate {
+        background: linear-gradient(45deg, #007bff, #0056b3);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-credit-card me-2"></i>Quản lý thanh toán</h2>
+        <a href="{% url 'financial_overview' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i> Quay lại tổng quan
+        </a>
+    </div>
+
+    <!-- Bộ lọc -->
+    <div class="filter-container">
+        <h4 class="mb-3"><i class="fas fa-filter me-2"></i>Bộ lọc</h4>
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Trạng thái thanh toán:</label>
+                <select name="status" class="form-select">
+                    <option value="">Tất cả</option>
+                    <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Đã thanh toán</option>
+                    <option value="unpaid" {% if status_filter == 'unpaid' %}selected{% endif %}>Chưa thanh toán</option>
+                </select>
+            </div>
+            
+            <div class="col-md-8">
+                <label class="form-label">Tìm kiếm:</label>
+                <input type="text" name="search" class="form-control" value="{{ search_query }}" placeholder="Biển số xe, tên người dùng, số điện thoại...">
+            </div>
+            
+            <div class="col-12">
+                <button type="submit" class="btn btn-light me-2">
+                    <i class="fas fa-search me-1"></i> Lọc
+                </button>
+                <a href="{% url 'payment_management' %}" class="btn btn-outline-light">
+                    <i class="fas fa-refresh me-1"></i> Xóa bộ lọc
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Thống kê nhanh -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="text-success">{{ page_obj.paginator.count }}</h5>
+                    <p class="text-muted mb-0">Tổng thanh toán</p>
+                </div>
+            </div>
+        </div>        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="text-warning" id="unpaid-count">0</h5>
+                    <p class="text-muted mb-0">Chưa thanh toán</p>
+                </div>
+            </div>
+        </div>        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="text-info" id="total-amount">0đ</h5>
+                    <p class="text-muted mb-0">Đã thu được</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Danh sách thanh toán -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>Danh sách thanh toán
+                <span class="badge bg-primary">{{ page_obj.paginator.count }} thanh toán</span>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if page_obj %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Biển số xe</th>
+                            <th>Chủ xe</th>
+                            <th>Thời gian đỗ</th>
+                            <th>Số tiền</th>
+                            <th>Trạng thái</th>
+                            <th>Ngày tạo</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in page_obj %}
+                        <tr class="payment-row {% if payment.status %}payment-paid{% else %}payment-unpaid{% endif %}">
+                            <td>
+                                <span class="badge bg-secondary">#{{ payment.id }}</span>
+                            </td>
+                            <td>
+                                <span class="vehicle-plate">{{ payment.history.vehicle.license_plate }}</span>
+                            </td>
+                            <td>
+                                <div class="fw-bold">{{ payment.history.vehicle.user.name }}</div>
+                                <small class="text-muted">{{ payment.history.vehicle.user.phone_number }}</small>
+                            </td>
+                            <td>
+                                <div>
+                                    <i class="fas fa-clock me-1"></i>
+                                    {{ payment.history.time_in|date:"d/m/Y H:i" }}
+                                </div>
+                                {% if payment.history.time_out %}
+                                <div>
+                                    <i class="fas fa-sign-out-alt me-1"></i>
+                                    {{ payment.history.time_out|date:"d/m/Y H:i" }}
+                                </div>
+                                <small class="text-muted">
+                                    {% with duration=payment.history.get_parking_duration %}
+                                    Đỗ: {{ duration.0 }}h {{ duration.1 }}m
+                                    {% endwith %}
+                                </small>
+                                {% else %}
+                                <small class="text-warning">Chưa xuất xe</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="fw-bold text-danger">{{ payment.fee|floatformat:0 }}đ</span>
+                            </td>
+                            <td>
+                                {% if payment.status %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check me-1"></i>Đã thanh toán
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-clock me-1"></i>Chưa thanh toán
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div>{{ payment.created_at|date:"d/m/Y" }}</div>
+                                <small class="text-muted">{{ payment.created_at|date:"H:i:s" }}</small>
+                            </td>
+                            <td>
+                                {% if not payment.status %}
+                                    <button class="btn btn-sm btn-success" 
+                                            onclick="markPaymentPaid({{ payment.id }})"
+                                            title="Xác nhận thanh toán">
+                                        <i class="fas fa-check me-1"></i> Xác nhận
+                                    </button>
+                                {% else %}
+                                    <span class="text-muted">
+                                        <i class="fas fa-check-circle"></i>
+                                    </span>
+                                {% endif %}
+                                
+                                <a href="{% url 'vehicle_detail' payment.history.vehicle.id %}" 
+                                   class="btn btn-sm btn-outline-info ms-1"
+                                   title="Xem chi tiết xe">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-credit-card fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">Không có thanh toán nào</h4>
+                <p class="text-muted">Thử thay đổi bộ lọc để xem kết quả khác</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Phân trang -->
+    {% if page_obj.has_other_pages %}
+    <div class="d-flex justify-content-center mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for page_num in page_obj.paginator.page_range %}
+                {% if page_num == page_obj.number %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">{{ page_num }}</a>
+                </li>
+                {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Count unpaid payments
+document.addEventListener('DOMContentLoaded', function() {
+    const unpaidRows = document.querySelectorAll('.payment-unpaid');
+    document.getElementById('unpaid-count').textContent = unpaidRows.length;
+    
+    // Calculate total paid amount
+    const paidRows = document.querySelectorAll('.payment-paid');
+    let totalAmount = 0;
+    paidRows.forEach(row => {
+        const feeText = row.querySelector('td:nth-child(5) .fw-bold').textContent;
+        const fee = parseFloat(feeText.replace(/[^\d]/g, ''));
+        if (!isNaN(fee)) {
+            totalAmount += fee;
+        }
+    });
+    document.getElementById('total-amount').textContent = totalAmount.toLocaleString() + 'đ';
+});
+
+// Xác nhận thanh toán
+async function markPaymentPaid(paymentId) {
+    if (!confirm('Bạn có chắc muốn xác nhận thanh toán này?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/webadmin/payment/${paymentId}/mark-paid/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('Xác nhận thanh toán thành công!');
+            location.reload();
+        } else {
+            alert(data.error || 'Có lỗi xảy ra');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Có lỗi xảy ra khi xác nhận thanh toán');
+    }
+}
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

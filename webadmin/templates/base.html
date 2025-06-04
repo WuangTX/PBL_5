@@ -134,14 +134,14 @@
 </head>
 <body>
     <!-- Side Menu -->    <div id="sideMenu" class="side-menu">
-        <span class="close-btn" onclick="closeNav()">&times;</span>
-        <a href="{% url 'index' %}"><i class="fas fa-home"></i> Trang chủ</a>
+        <span class="close-btn" onclick="closeNav()">&times;</span>        <a href="{% url 'index' %}"><i class="fas fa-home"></i> Trang chủ</a>
         <a href="{% url 'parked_cars' %}"><i class="fas fa-car"></i> Xe đang đỗ</a>
         <a href="{% url 'add_vehicle' %}"><i class="fas fa-plus-circle"></i> Thêm xe mới</a>
         <a href="{% url 'manage_vehicles' %}"><i class="fas fa-car-alt"></i> Quản lý xe</a>
         <a href="{% url 'manage_parking_spaces' %}"><i class="fas fa-parking"></i> Quản lý bãi đỗ</a>
         <a href="{% url 'vehicle_history' %}"><i class="fas fa-history"></i> Lịch sử</a>
         <a href="{% url 'manage_users' %}"><i class="fas fa-users"></i> Quản lý người dùng</a>
+        <a href="{% url 'financial_overview' %}"><i class="fas fa-chart-line"></i> Quản lý tài chính</a>
         {% if request.session.user_id %}
             <a href="{% url 'profile' %}"><i class="fas fa-user"></i> {{ request.session.user_name }}</a>
             <a href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a>
@@ -173,10 +173,14 @@
                             <a href="{% url 'manage_parking_spaces' %}" class="nav-link text-white">
                                 <i class="fas fa-parking"></i> Quản lý bãi đỗ
                             </a>
-                        </li>
-                        <li class="nav-item">
+                        </li>                        <li class="nav-item">
                             <a href="{% url 'vehicle_history' %}" class="nav-link text-white">
                                 <i class="fas fa-history"></i> Lịch sử
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'financial_overview' %}" class="nav-link text-white">
+                                <i class="fas fa-chart-line"></i> Tài chính
                             </a>
                         </li>
                         {% if request.session.user_id %}

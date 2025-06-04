@@ -1,0 +1,439 @@
+{% extends 'base.html' %}
+
+{% block title %}Chi tiết tài chính {{ user.name }} - Parking Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-info-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .balance-display {
+        font-size: 2.5rem;
+        font-weight: bold;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    .transaction-item {
+        border-left: 4px solid #dee2e6;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        background: #f8f9fa;
+        border-radius: 0 8px 8px 0;
+        transition: transform 0.2s;
+    }
+    
+    .transaction-item:hover {
+        transform: translateX(5px);
+    }
+    
+    .transaction-item.deposit {
+        border-left-color: #28a745;
+        background: #f8fff9;
+    }
+    
+    .transaction-item.payment {
+        border-left-color: #dc3545;
+        background: #fff5f5;
+    }
+    
+    .transaction-item.admin {
+        border-left-color: #007bff;
+        background: #f8fbff;
+    }
+    
+    .amount-positive {
+        color: #28a745;
+        font-weight: bold;
+    }
+    
+    .amount-negative {
+        color: #dc3545;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-user-circle me-2"></i>Chi tiết tài chính</h2>
+        <a href="{% url 'manage_user_balance' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i> Quay lại danh sách
+        </a>
+    </div>
+
+    <!-- Thông tin người dùng -->
+    <div class="user-info-card">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h3 class="mb-3">
+                    <i class="fas fa-user me-2"></i>{{ user.name }}
+                    <span class="badge bg-light text-dark ms-2">{{ user.role|title }}</span>
+                </h3>
+                <div class="row">
+                    <div class="col-sm-6">
+                        <p class="mb-2">
+                            <i class="fas fa-phone me-2"></i>{{ user.phone_number }}
+                        </p>
+                        {% if user.email %}
+                        <p class="mb-2">
+                            <i class="fas fa-envelope me-2"></i>{{ user.email }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="col-sm-6">
+                        <p class="mb-2">
+                            <i class="fas fa-calendar me-2"></i>Đăng ký: {{ user.created_at|date:"d/m/Y" }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="fas fa-car me-2"></i>Số xe: {{ user.vehicles.count }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="balance-display">{{ user.balance|floatformat:0 }}đ</div>
+                <p class="mb-0 opacity-75">Số dư hiện tại</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thống kê -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card text-success">
+                <div class="stat-value">{{ total_deposited|floatformat:0 }}đ</div>
+                <div class="stat-label">Tổng đã nạp</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card text-danger">
+                <div class="stat-value">{{ total_spent|floatformat:0 }}đ</div>
+                <div class="stat-label">Tổng đã chi</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card text-info">
+                <div class="stat-value">{{ page_obj.paginator.count }}</div>
+                <div class="stat-label">Tổng giao dịch</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thao tác nhanh -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-tools me-2"></i>Thao tác nhanh
+                    </h5>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-success" 
+                                onclick="showAdjustModal('{{ user.id }}', '{{ user.name }}', 'add', {{ user.balance }})">
+                            <i class="fas fa-plus me-1"></i> Nạp tiền
+                        </button>
+                        <button class="btn btn-warning" 
+                                onclick="showAdjustModal('{{ user.id }}', '{{ user.name }}', 'subtract', {{ user.balance }})">
+                            <i class="fas fa-minus me-1"></i> Trừ tiền
+                        </button>
+                        <a href="{% url 'transaction_history' %}?search={{ user.phone_number }}" class="btn btn-info">
+                            <i class="fas fa-history me-1"></i> Xem tất cả giao dịch
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lịch sử giao dịch -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-history me-2"></i>Lịch sử giao dịch gần đây
+                <span class="badge bg-primary">{{ page_obj.paginator.count }} giao dịch</span>
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if page_obj %}
+            {% for transaction in page_obj %}
+            <div class="transaction-item {% if 'ADD' in transaction.transaction_type or 'DEPOSIT' in transaction.transaction_type %}deposit{% elif 'PAYMENT' in transaction.transaction_type %}payment{% else %}admin{% endif %}">
+                <div class="row align-items-center">
+                    <div class="col-md-2">
+                        <span class="badge bg-secondary">#{{ transaction.id }}</span>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="fw-bold">
+                            {% if transaction.transaction_type == 'DEPOSIT' %}Nạp tiền
+                            {% elif transaction.transaction_type == 'PARKING_PAYMENT' %}Thanh toán đỗ xe
+                            {% elif transaction.transaction_type == 'ADMIN_ADD' %}Admin nạp tiền
+                            {% elif transaction.transaction_type == 'ADMIN_SUBTRACT' %}Admin trừ tiền
+                            {% else %}{{ transaction.transaction_type }}
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">
+                            {% if transaction.payment_method == 'ADMIN_ADJUSTMENT' %}
+                                Điều chỉnh bởi Admin
+                            {% elif transaction.payment_method == 'ADMIN_CONFIRM' %}
+                                Xác nhận bởi Admin
+                            {% else %}
+                                {{ transaction.payment_method|default:"N/A" }}
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="col-md-2">
+                        <span class="{% if transaction.amount > 0 %}amount-positive{% else %}amount-negative{% endif %}">
+                            {% if transaction.amount > 0 %}+{% endif %}{{ transaction.amount|floatformat:0 }}đ
+                        </span>
+                    </div>
+                    <div class="col-md-2">
+                        <span class="badge {% if transaction.status == 'COMPLETED' %}bg-success{% elif transaction.status == 'PENDING' %}bg-warning{% else %}bg-danger{% endif %}">
+                            {% if transaction.status == 'COMPLETED' %}Hoàn thành
+                            {% elif transaction.status == 'PENDING' %}Đang xử lý
+                            {% elif transaction.status == 'FAILED' %}Thất bại
+                            {% else %}{{ transaction.status }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="col-md-2">
+                        <div>{{ transaction.created_at|date:"d/m/Y" }}</div>
+                        <small class="text-muted">{{ transaction.created_at|date:"H:i:s" }}</small>
+                    </div>
+                    <div class="col-md-1">
+                        {% if transaction.payment %}
+                            <a href="{% url 'payment_management' %}?search={{ transaction.payment.id }}" 
+                               class="btn btn-sm btn-outline-info"
+                               title="Xem thanh toán liên quan">
+                                <i class="fas fa-link"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Phân trang -->
+            {% if page_obj.has_other_pages %}
+            <div class="d-flex justify-content-center mt-4">
+                <nav aria-label="Page navigation">
+                    <ul class="pagination">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in page_obj.paginator.page_range %}
+                        {% if page_num == page_obj.number %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_num }}">{{ page_num }}</a>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">Chưa có giao dịch nào</h4>
+                <p class="text-muted">Người dùng này chưa thực hiện giao dịch nào</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal điều chỉnh số dư -->
+<div class="modal fade" id="adjustBalanceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="adjustModalTitle">Điều chỉnh số dư</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="adjustBalanceForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Người dùng:</label>
+                        <div class="fw-bold" id="adjustUserName"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Số dư hiện tại:</label>
+                        <div class="fw-bold text-primary" id="adjustCurrentBalance"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="adjustAmount" class="form-label">Số tiền:</label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="adjustAmount" 
+                                   name="amount" 
+                                   min="1"                                   step="1" 
+                                   required>
+                            <span class="input-group-text">VNĐ</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="adjustReason" class="form-label">Lý do:</label>
+                        <textarea class="form-control" 
+                                  id="adjustReason" 
+                                  name="reason" 
+                                  rows="3" 
+                                  placeholder="Nhập lý do điều chỉnh..." 
+                                  required></textarea>
+                    </div>
+                    
+                    <input type="hidden" id="adjustUserId" name="user_id">
+                    <input type="hidden" id="adjustType" name="adjustment_type">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary" id="adjustSubmitBtn">Xác nhận</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let adjustModal;
+
+document.addEventListener('DOMContentLoaded', function() {
+    adjustModal = new bootstrap.Modal(document.getElementById('adjustBalanceModal'));
+});
+
+function showAdjustModal(userId, userName, type, currentBalance) {
+    document.getElementById('adjustUserId').value = userId;
+    document.getElementById('adjustType').value = type;
+    document.getElementById('adjustUserName').textContent = userName;
+    document.getElementById('adjustCurrentBalance').textContent = currentBalance.toLocaleString() + 'đ';
+    
+    const title = type === 'add' ? 'Nạp tiền vào tài khoản' : 'Trừ tiền từ tài khoản';
+    document.getElementById('adjustModalTitle').textContent = title;
+    
+    const submitBtn = document.getElementById('adjustSubmitBtn');
+    submitBtn.textContent = type === 'add' ? 'Nạp tiền' : 'Trừ tiền';
+    submitBtn.className = type === 'add' ? 'btn btn-success' : 'btn btn-warning';
+    
+    // Reset form
+    document.getElementById('adjustAmount').value = '';
+    document.getElementById('adjustReason').value = '';
+    
+    adjustModal.show();
+}
+
+document.getElementById('adjustBalanceForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const userId = formData.get('user_id');
+    const submitBtn = document.getElementById('adjustSubmitBtn');
+    
+    // Disable submit button
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Đang xử lý...';
+    
+    try {
+        const response = await fetch(`/webadmin/user/${userId}/adjust-balance/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert(data.message);
+            adjustModal.hide();
+            location.reload();
+        } else {
+            alert(data.error || 'Có lỗi xảy ra');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Có lỗi xảy ra khi điều chỉnh số dư');
+    } finally {
+        // Re-enable submit button
+        submitBtn.disabled = false;
+        const type = document.getElementById('adjustType').value;
+        submitBtn.innerHTML = type === 'add' ? 'Nạp tiền' : 'Trừ tiền';
+    }
+});
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}
