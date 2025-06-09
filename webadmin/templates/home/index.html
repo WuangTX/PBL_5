@@ -411,7 +411,7 @@
     // Khởi tạo kết nối Socket.IO
     const socket = io('http://127.0.0.1:5000');
 
-    // Lắng nghe sự kiện vehicle_info từ server (cả xe vào và xe ra)
+    // Lắng nghe sự kiện vehicle_info từ server (xe vào và xe chưa đăng ký)
     socket.on('vehicle_info', (data) => {
         console.log('Received vehicle info from server:', data);
         updateVehicleInfo(data);
@@ -425,38 +425,36 @@
             // Hiển thị thông báo thêm xe
             const message = `${data.license_plate} đã vào ${data.space_info || 'bãi đỗ'}`;
             showNotification(message, 'primary');
-        } else if (data.type === 'exit') {
-            // Xe ra khỏi bãi - giảm số xe đang đỗ, tăng chỗ trống
-            updateDashboardStats(-1);
-            // Cập nhật biểu đồ lưu lượng xe ra
-            updateTrafficChart('exit');
-            // Hiển thị thông báo xe ra
-            if (data.space_info) {
-                const message = `${data.license_plate} đã rời khỏi ${data.space_info}`;
-                showNotification(message, 'success');
-            }
+        } else if (data.type === 'entrance' && !data.is_registered) {
+            // Xe chưa đăng ký vào
+            const message = `${data.license_plate} - Xe chưa đăng ký`;
+            showNotification(message, 'warning');
+        }
+    });
+
+    // Lắng nghe sự kiện vehicle_exit từ server (xe ra)
+    socket.on('vehicle_exit', (data) => {
+        console.log('Received vehicle exit from server:', data);
+        updateVehicleInfo(data);
+        
+        // Xe ra khỏi bãi - giảm số xe đang đỗ, tăng chỗ trống
+        updateDashboardStats(-1);
+        // Cập nhật biểu đồ lưu lượng xe ra
+        updateTrafficChart('exit');
+        
+        // Hiển thị thông báo xe ra với thông tin chi tiết
+        let message = `${data.license_plate} đã rời khỏi ${data.space_info || 'bãi đỗ'}`;
+        if (data.fee && data.parking_duration) {
+            message += ` - Phí: ${data.fee.toLocaleString()}đ (${data.parking_duration}h)`;
+        }
+        if (data.payment_status === 'Paid') {
+            showNotification(message + ' ✓ Đã thanh toán', 'success');
+        } else {
+            showNotification(message + ' ⚠ Chưa thanh toán', 'warning');
         }
     });
     
-    // Lắng nghe event vehicle_exit từ Socket.IO (để tương thích với mã cũ nếu cần)
-    socket.on('vehicle_exit', (exitData) => {
-        console.log('Received vehicle exit via Socket.IO:', exitData);
-        // Gửi lại thông tin qua vehicle_info với type=exit
-        if (exitData && exitData.data) {
-            const data = exitData.data;
-            data.type = 'exit'; // Đảm bảo type luôn là exit
-            updateVehicleInfo(data);
-            updateDashboardStats(-1);
-            updateTrafficChart('exit');
-            
-            // Hiển thị thông báo xe ra
-            if (data.space_info) {
-                const message = `${data.license_plate} đã rời khỏi ${data.space_info}`;
-                showNotification(message, 'success');
-            }
-        }
-    });
-    
+
     // Không cần chủ động gọi đến API nữa, chỉ lắng nghe sự kiện từ Socket.IO
     console.log('Waiting for server events via Socket.IO...');
     
@@ -484,25 +482,69 @@
         }, 5000);
     }
 
+    // Hàm xóa tất cả thông tin xe hiện tại
+    function clearVehicleInfoFields() {
+        // Reset các trường cơ bản
+        document.getElementById('vehicle-status').textContent = 'Đang xử lý...';
+        document.getElementById('vehicle-status').className = 'badge bg-secondary ms-2';
+        document.getElementById('plate-number').textContent = 'N/A';
+        document.getElementById('owner-name').textContent = 'N/A';
+        document.getElementById('timestamp').textContent = 'N/A';
+        
+        // Xóa các trường thông tin bổ sung (nếu có)
+        const fieldsToRemove = [
+            'space-info',
+            'parking-duration', 
+            'parking-fee',
+            'account-balance'
+        ];
+        
+        fieldsToRemove.forEach(fieldId => {
+            const element = document.getElementById(fieldId);
+            if (element) {
+                element.parentElement.remove();
+            }
+        });
+        
+        // Reset màu nền container về mặc định
+        const infoContainer = document.querySelector('.border.rounded.p-3');
+        infoContainer.style.backgroundColor = '';
+        
+        console.log('Đã xóa tất cả thông tin xe cũ');
+    }
+
     // Hàm cập nhật thông tin xe
     function updateVehicleInfo(data) {
         if (!data) return;
         
         try {
+            // Xóa tất cả thông tin xe cũ trước khi cập nhật
+            clearVehicleInfoFields();
+            // Reset tất cả các trường thông tin trước khi cập nhật mới
+            clearVehicleInfoFields();
+            
             // Cập nhật trạng thái và hiển thị xe ra/vào
             const statusBadge = document.getElementById('vehicle-status');
-            const typeText = data.type === 'exit' ? 'Đã ra' : (data.type === 'entrance' ? 'Đã vào' : 'Chờ xe');
-            statusBadge.textContent = `${typeText} - ${data.status || (data.is_registered ? 'Đã đăng ký' : 'Chưa đăng ký')}`;
-            
-            // Phân biệt màu theo loại và trạng thái đăng ký
+            let typeText = '';
             let badgeClass = 'badge ms-2 ';
+            
             if (data.type === 'exit') {
+                typeText = 'Đã ra';
                 badgeClass += data.is_registered ? 'bg-info' : 'bg-warning';
             } else if (data.type === 'entrance') {
+                typeText = 'Đã vào';
                 badgeClass += data.is_registered ? 'bg-success' : 'bg-warning';
             } else {
+                typeText = 'Chờ xe';
                 badgeClass += 'bg-secondary';
             }
+            
+            // Hiển thị trạng thái với thông tin thanh toán (nếu có)
+            let statusText = `${typeText} - ${data.status || (data.is_registered ? 'Đã đăng ký' : 'Chưa đăng ký')}`;
+            if (data.payment_status) {
+                statusText += ` (${data.payment_status === 'Paid' ? 'Đã thanh toán' : 'Chưa thanh toán'})`;
+            }
+            statusBadge.textContent = statusText;
             statusBadge.className = badgeClass;
 
             // Cập nhật biển số
@@ -510,51 +552,30 @@
 
             // Cập nhật chủ xe
             document.getElementById('owner-name').textContent = 
-                data.is_registered ? data.vehicle_owner : 'Chưa đăng ký';
+                data.is_registered ? (data.vehicle_owner || 'N/A') : 'Chưa đăng ký';
 
             // Cập nhật thời gian - hỗ trợ cả entry_time và exit_time
-            const timeDisplay = data.entry_time || data.exit_time || new Date().toLocaleString();
+            const timeDisplay = data.exit_time || data.entry_time || new Date().toLocaleString();
             document.getElementById('timestamp').textContent = timeDisplay;
 
             // Hiển thị thông tin chỗ đỗ nếu có
             if (data.space_info) {
-                const spaceInfoElement = document.getElementById('space-info');
-                if (!spaceInfoElement) {
-                    // Tạo phần tử mới nếu chưa tồn tại
-                    const infoContainer = document.querySelector('.border.rounded.p-3');
-                    const spaceInfoDiv = document.createElement('div');
-                    spaceInfoDiv.className = 'mb-2';
-                    spaceInfoDiv.innerHTML = `
-                        <small class="text-muted">Chỗ đỗ:</small>
-                        <span class="ms-2" id="space-info">${data.space_info}</span>
-                    `;
-                    infoContainer.insertBefore(spaceInfoDiv, document.getElementById('timestamp').parentNode.nextSibling);
-                } else {
-                    spaceInfoElement.textContent = data.space_info;
-                }
+                updateOrCreateInfoElement('space-info', 'Chỗ đỗ:', data.space_info);
             }
             
-            // Hiển thị thời gian đỗ xe nếu có
+            // Hiển thị thời gian đỗ xe nếu có (cho xe ra)
             if (data.parking_duration !== undefined && data.type === 'exit') {
-                const durationElement = document.getElementById('parking-duration');
-                if (!durationElement) {
-                    // Tạo phần tử mới nếu chưa tồn tại
-                    const infoContainer = document.querySelector('.border.rounded.p-3');
-                    const durationDiv = document.createElement('div');
-                    durationDiv.className = 'mb-2';
-                    durationDiv.innerHTML = `
-                        <small class="text-muted">Thời gian đỗ:</small>
-                        <span class="ms-2" id="parking-duration">${formatDuration(data.parking_duration)}</span>
-                    `;
-                    const spaceInfoElement = document.getElementById('space-info');
-                    if (spaceInfoElement) {
-                        infoContainer.insertBefore(durationDiv, spaceInfoElement.parentNode.nextSibling);
-                    } else {
-                        infoContainer.insertBefore(durationDiv, document.getElementById('timestamp').parentNode.nextSibling);
-                    }
-                } else {
-                    durationElement.textContent = formatDuration(data.parking_duration);
-                }
+                updateOrCreateInfoElement('parking-duration', 'Thời gian đỗ:', `${data.parking_duration} giờ`);
+            }
+            
+            // Hiển thị phí đỗ xe nếu có (cho xe ra)
+            if (data.fee !== undefined && data.type === 'exit') {
+                updateOrCreateInfoElement('parking-fee', 'Phí đỗ xe:', `${data.fee.toLocaleString()} VNĐ`);
+            }
+            
+            // Hiển thị số dư tài khoản nếu có (cho xe ra)
+            if (data.balance !== undefined && data.type === 'exit') {
+                updateOrCreateInfoElement('account-balance', 'Số dư:', `${data.balance.toLocaleString()} VNĐ`);
             }
 
             // Hiệu ứng highlight khi có thông tin mới
@@ -581,6 +602,24 @@
             console.log(`Vehicle ${data.type} information updated successfully for ${data.license_plate}`);
         } catch (error) {
             console.error('Error updating vehicle info:', error);
+        }
+    }
+
+    // Hàm helper để tạo hoặc cập nhật element thông tin
+    function updateOrCreateInfoElement(elementId, label, value) {
+        let element = document.getElementById(elementId);
+        if (!element) {
+            // Tạo phần tử mới nếu chưa tồn tại
+            const infoContainer = document.querySelector('.border.rounded.p-3');
+            const newDiv = document.createElement('div');
+            newDiv.className = 'mb-2';
+            newDiv.innerHTML = `
+                <small class="text-muted">${label}</small>
+                <span class="ms-2" id="${elementId}">${value}</span>
+            `;
+            infoContainer.appendChild(newDiv);
+        } else {
+            element.textContent = value;
         }
     }
 
