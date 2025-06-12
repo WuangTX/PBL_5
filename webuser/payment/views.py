@@ -34,11 +34,14 @@ def payment_view(request):
         try:
             user = User.objects.get(id=user_id)
 
-            # Lọc các lịch sử của user có payment và status=False
+            # Lấy tất cả lịch sử xe đã ra (có time_out) nhưng chưa thanh toán
+            # Hoặc chưa có Payment record hoặc Payment có status=False
             unpaid_histories = History.objects.filter(
                 vehicle__user=user,
-                payment__status=False
-            ).select_related('vehicle', 'payment')
+                time_out__isnull=False  # Chỉ xe đã ra
+            ).exclude(
+                payment__status=True  # Loại trừ những xe đã thanh toán
+            ).select_related('vehicle').distinct().order_by('-time_out')
 
         except User.DoesNotExist:
             pass

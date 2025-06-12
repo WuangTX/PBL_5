@@ -18,13 +18,6 @@
         <div class="payment-container">
             <div class="payment-info">
                 <h2>Thông Tin Thanh Toán</h2>
-                {% comment %} <div class="search-vehicle">
-                    <h3>Tìm Kiếm Xe</h3>
-                    <div class="search-box">
-                        <input type="text" id="vehicleSearch" placeholder="Nhập biển số xe...">
-                        <button id="searchVehicleBtn" class="btn btn-primary"><i class="fas fa-search"></i> Tìm Kiếm</button>
-                    </div>
-                </div> {% endcomment %}
                 <div class="search-vehicle">
                     <h3>Chọn Xe Chưa Thanh Toán</h3>
                     <div class="search-box">
@@ -67,60 +60,6 @@
             <div class="payment-methods">
                 <h2>Phương Thức Thanh Toán</h2>
                 <div class="payment-options">
-                    {% comment %} <div class="payment-option">
-                        <input type="radio" id="creditCard" name="paymentMethod" checked>
-                        <label for="creditCard">
-                            <i class="far fa-credit-card"></i> Thẻ Tín Dụng/Ghi Nợ
-                        </label>
-                        <div class="payment-details active" id="creditCardDetails">
-                            <div class="form-group">
-                                <label for="cardNumber">Số Thẻ</label>
-                                <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456">
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="expiryDate">Ngày Hết Hạn</label>
-                                    <input type="text" id="expiryDate" placeholder="MM/YY">
-                                </div>
-                                <div class="form-group">
-                                    <label for="cvv">CVV</label>
-                                    <input type="text" id="cvv" placeholder="123">
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="cardName">Tên Chủ Thẻ</label>
-                                <input type="text" id="cardName" placeholder="NGUYEN VAN A">
-                            </div>
-                        </div>
-                    </div> {% endcomment %}
-
-                    {% comment %} <div class="payment-option">
-                        <input type="radio" id="momo" name="paymentMethod">
-                        <label for="momo">
-                            <i class="fas fa-wallet"></i> Ví MoMo
-                        </label>
-                        <div class="payment-details" id="momoDetails">
-                            <div class="qr-code">
-                                <img src="/placeholder.svg?height=200&width=200" alt="Mã QR MoMo">
-                            </div>
-                            <p class="qr-instruction">Quét mã QR bằng ứng dụng MoMo để thanh toán</p>
-                        </div>
-                    </div> {% endcomment %}
-
-                    {% comment %} <div class="payment-option">
-                        <input type="radio" id="banking" name="paymentMethod">
-                        <label for="banking">
-                            <i class="fas fa-university"></i> Chuyển Khoản Ngân Hàng
-                        </label>
-                        <div class="payment-details" id="bankingDetails">
-                            <div class="bank-info">
-                                <p><strong>Tên Tài Khoản:</strong> CÔNG TY SMART PARKING</p>
-                                <p><strong>Số Tài Khoản:</strong> 1234567890</p>
-                                <p><strong>Ngân Hàng:</strong> Vietcombank - Chi nhánh TP.HCM</p>
-                                <p><strong>Nội Dung:</strong> 51F-246.80 THANH TOAN PHI DO XE</p>
-                            </div>
-                        </div>
-                    </div> {% endcomment %}
                     <div class="payment-option">
                         <input type="radio" id="Account Balance" name="paymentMethod" checked>
                         <label for="accountBalance">
@@ -155,7 +94,7 @@
             return;
         }
     
-        fetch(`/payment/vehicle-details?history_id=${historyId}`)
+        fetch(`/webuser/payment/vehicle-details?history_id=${historyId}`)
             .then(response => response.json())
             .then(data => {
                 document.getElementById('plateNumber').textContent = data.plateNumber;
@@ -237,7 +176,7 @@
 
             // Gửi yêu cầu AJAX đến server
             setTimeout(() => {
-                fetch('/payment/process_parking_payment/', {
+                fetch('/webuser/payment/process_parking_payment/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

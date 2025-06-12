@@ -155,22 +155,25 @@
     .dropdown-menu {
         min-width: 150px;
     }
-}
-    </style>
+}    </style>
     {% block payment-css %}{% endblock payment-css %}
     {% block account-css %} {% endblock account-css %}
+    {% block vehicle-css %}{% endblock vehicle-css %}
 </head>
 <body>
     <header>
         <div class="container">
             <div class="logo">
                 <a href="{% url "index-user" %}"><h1><i class="fas fa-parking"></i> Smart Parking</h1></a>
-            </div>
-            <nav>
+            </div>            <nav>
                 <ul>
                     <li><a href="{% url "index-user" %}" class="active">Trang Chủ</a></li>
-                    <li><a href="{% url "history" %}">Lịch Sử Xe</a></li>
-                    <li><a href="{% url "payment" %}">Đóng Phí</a></li>
+                    {% if user %}
+                        <li><a href="{% url "vehicle_management" %}">Quản lý xe</a></li>
+                        <li><a href="{% url 'add_vehicle' %}">Thêm xe mới</a></li>
+                        <li><a href="{% url "history" %}">Lịch Sử Xe</a></li>
+                        <li><a href="{% url "payment" %}">Đóng Phí</a></li>
+                    {% endif %}
                     <li><a href="{% url "about" %}">Giới Thiệu</a></li>
                 </ul>
             </nav>
@@ -183,8 +186,7 @@
                     <div class="user-menu">
                         <span class="user-icon"><i class="fas fa-user"></i> {{ user.name }}</span>
                         <div class="dropdown-menu">
-                            <a href="{% url "account" %}" class="dropdown-item">Tài khoản</a>
-                            <a href="{% url "registerVehicle" %}" class="dropdown-item">Đăng Ký Biển Số Xe</a>
+                            <a href="{% url 'account' %}" class="dropdown-item">Tài Khoản</a>
                             <a href="{% url 'logout' %}" class="dropdown-item">Đăng Xuất</a>
                         </div>
                     </div>
@@ -214,9 +216,12 @@
     
     {% block about-content %}
     {% endblock about-content %}
-    
-    {% block registerVehicle-content %}
-    {% endblock registerVehicle-content %}
+      {% block registerVehicle-content %}
+    {% endblock registerVehicle-content %}    {% block vehicle-management-content %}
+    {% endblock vehicle-management-content %}
+
+    {% block vehicle-content %}
+    {% endblock vehicle-content %}
 
     {% block account-content %}{% endblock account-content %}
 
@@ -228,13 +233,14 @@
                 <div class="footer-logo">
                     <h2><i class="fas fa-parking"></i> Smart Parking</h2>
                     <p>Giải pháp đỗ xe thông minh cho cuộc sống hiện đại</p>
-                </div>
-                <div class="footer-links">
-                    <h3>Liên Kết Nhanh</h3>
-                    <ul>
-                        <li><a href="{% url "index" %}">Trang Chủ</a></li>
-                        <li><a href="{% url "history" %}">Lịch Sử Xe</a></li>
-                        <li><a href="{% url "payment" %}">Đóng Phí</a></li>
+                </div>                <div class="footer-links">
+                    <h3>Liên Kết Nhanh</h3>                    <ul>
+                        <li><a href="{% url "index-user" %}">Trang Chủ</a></li>
+                        {% if user %}
+                            <li><a href="{% url "vehicle_management" %}">Quản lý xe</a></li>
+                            <li><a href="{% url "history" %}">Lịch Sử Xe</a></li>
+                            <li><a href="{% url "payment" %}">Đóng Phí</a></li>
+                        {% endif %}
                         <li><a href="{% url "about" %}">Giới Thiệu</a></li>
                     </ul>
                 </div>

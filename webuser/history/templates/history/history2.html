@@ -144,7 +144,7 @@
                 });
                 
                 function fetchHistoryData(query, page) {
-                    fetch(`/history/search/?query=${encodeURIComponent(query)}&page=${page}`)
+                    fetch(`/webuser/history/search/?query=${encodeURIComponent(query)}&page=${page}`)
                         .then(response => response.json())
                         .then(data => {
                             updateTable(data.histories);

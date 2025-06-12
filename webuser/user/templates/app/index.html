@@ -6,6 +6,11 @@
 <section class="hero">
     <div class="container">
         <div class="hero-content">
+            <div class="marquee-container">
+                <div class="marquee">
+                    🚗 Hiện còn <span id="slot-count">{{ slot_count }}</span> chỗ trống trong bãi! Nhanh tay đặt chỗ ngay! 🚗
+                </div>
+            </div>
             <h1>Chào Mừng Đến Với Smart Parking</h1>
             <p>Hệ thống quản lý bãi đỗ xe thông minh, tiện lợi và an toàn</p>
             <div class="hero-buttons">
@@ -78,11 +83,6 @@
 </section>
 
 <section class="cta">
-    <div class="marquee-container">
-        <div class="marquee">
-            🚗 Hiện còn <span id="slot-count">{{ slot_count }}</span> chỗ trống trong bãi! Nhanh tay đặt chỗ ngay! 🚗
-        </div>
-    </div>
     <div class="container">
         {% if not user %}
         <h2>Bắt Đầu Sử Dụng Smart Parking Ngay Hôm Nay</h2>

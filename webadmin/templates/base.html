@@ -95,15 +95,17 @@
             cursor: pointer;
             color: white;
             margin-right: 10px;
-        }
-
-        @media (max-width: 768px) {
+        }        @media (max-width: 768px) {
             .nav {
-                display: none;
+                display: flex;
+                flex-wrap: wrap;
+                font-size: 0.9rem;
+            }
+            .nav-link {
+                padding: 0.3rem 0.5rem;
             }
             .container {
                 padding: 0 0.3rem;
-
             }
             .card-body {
                 padding: 0.6rem;
@@ -125,16 +127,42 @@
         }
         .modal-header, .modal-footer {
             padding: 0.8rem;
-        }
-        .nav-link {
+        }        .nav-link {
             padding: 0.4rem 0.8rem;
+        }
+        
+        /* Navbar responsive improvements */
+        @media (max-width: 992px) {
+            .nav {
+                font-size: 0.85rem;
+            }
+            .nav-link {
+                padding: 0.3rem 0.6rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .parking-header {
+                padding: 15px;
+            }
+            .parking-header h1 {
+                font-size: 1.2rem;
+            }
+            .nav {
+                display: none; /* Ẩn navbar trên mobile để sử dụng side menu */
+            }
+            .menu-toggle {
+                display: block;
+            }
         }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Side Menu -->    <div id="sideMenu" class="side-menu">
-        <span class="close-btn" onclick="closeNav()">&times;</span>        <a href="{% url 'index' %}"><i class="fas fa-home"></i> Trang chủ</a>
+    <!-- Side Menu -->    
+    <div id="sideMenu" class="side-menu">
+        <span class="close-btn" onclick="closeNav()">&times;</span>
+        <a href="{% url 'index' %}"><i class="fas fa-home"></i> Trang chủ</a>
         <a href="{% url 'parked_cars' %}"><i class="fas fa-car"></i> Xe đang đỗ</a>
         <a href="{% url 'add_vehicle' %}"><i class="fas fa-plus-circle"></i> Thêm xe mới</a>
         <a href="{% url 'manage_vehicles' %}"><i class="fas fa-car-alt"></i> Quản lý xe</a>
@@ -158,7 +186,8 @@
                     <span class="menu-toggle" onclick="openNav()">☰</span>
                     <h1 class="h3 mb-0">Parking Management System</h1>
                 </div>
-                <nav>                    <ul class="nav">
+                <nav>                    
+                    <ul class="nav">
                         <li class="nav-item">
                             <a href="{% url 'index' %}" class="nav-link text-white">
                                 <i class="fas fa-home"></i> Trang chủ
@@ -168,12 +197,17 @@
                             <a href="{% url 'parked_cars' %}" class="nav-link text-white">
                                 <i class="fas fa-car-alt"></i> Xe đang đỗ
                             </a>
-                        </li>
-                        <li class="nav-item">
+                        </li>                        <li class="nav-item">
                             <a href="{% url 'manage_parking_spaces' %}" class="nav-link text-white">
                                 <i class="fas fa-parking"></i> Quản lý bãi đỗ
                             </a>
-                        </li>                        <li class="nav-item">
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'manage_users' %}" class="nav-link text-white">
+                                <i class="fas fa-users"></i> Quản lý người dùng
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a href="{% url 'vehicle_history' %}" class="nav-link text-white">
                                 <i class="fas fa-history"></i> Lịch sử
                             </a>
@@ -187,11 +221,6 @@
                             <li class="nav-item">
                                 <a href="{% url 'profile' %}" class="nav-link text-white">
                                     <i class="fas fa-user"></i> {{ request.session.user_name }}
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{% url 'logout' %}" class="nav-link text-white">
-                                    <i class="fas fa-sign-out-alt"></i> Đăng xuất
                                 </a>
                             </li>
                         {% else %}

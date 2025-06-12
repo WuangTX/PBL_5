@@ -1,0 +1,551 @@
+{% extends "app/base.html" %}
+{% load static %}
+
+{% block vehicle-css %}
+<style>
+    .add-vehicle-section {
+        background: linear-gradient(135deg,rgb(255, 255, 255) 0%,rgb(255, 255, 255) 100%);
+        min-height: 100vh;
+    }
+    
+    .add-vehicle-container {
+        width: 100%;
+        margin: 0 auto;
+    }
+    
+    .page-header {
+        text-align: center;
+        margin-bottom: 3rem;
+        color: white;
+    }
+    
+    .page-header h1 {
+        font-size: 2.78rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    
+    .add-vehicle-form {
+        display: center;
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    }
+    
+    .form-control.is-invalid {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+    }
+    
+    .form-control.is-valid {
+        border-color: #28a745;
+        box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+    }
+    
+    .invalid-feedback,
+    .valid-feedback {
+        display: block;
+        width: 100%;
+        margin-top: 0.25rem;
+        font-size: 0.875rem;
+    }
+    
+    .invalid-feedback {
+        color: #dc3545;
+    }
+    
+    .valid-feedback {
+        color: #28a745;
+    }
+    
+    .file-upload {
+        position: relative;
+        overflow: hidden;
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .file-upload:hover {
+        border-color: #007bff;
+        background-color: #f8f9fa;
+    }
+    
+    .file-upload.dragover {
+        border-color: #007bff;
+        background-color: #e3f2fd;
+    }
+    
+    .file-upload input[type="file"] {
+        position: absolute;
+        left: -9999px;
+    }
+    
+    .file-upload-icon {
+        font-size: 3rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+    
+    .file-upload-text {
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+    
+    .file-upload-subtext {
+        font-size: 0.875rem;
+        color: #adb5bd;
+    }
+    
+    .image-preview {
+        display: none;
+        margin-top: 1rem;
+    }
+    
+    .image-preview img {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn-submit {
+        width: 100%;
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 1rem;
+    }
+    
+    .btn-submit:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+    }
+    
+    .btn-submit:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+    }
+    
+    .help-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    .loading-spinner {
+        display: none;
+        justify-content: center;
+        align-items: center;
+        margin: 1rem 0;
+    }
+    
+    .spinner {
+        width: 30px;
+        height: 30px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 768px) {
+        .add-vehicle-form {
+            padding: 1.5rem;
+        }
+        
+        .page-header h1 {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block vehicle-content %}
+<section class="add-vehicle-section">
+    <div class="add-vehicle-container">
+        
+        <div class="page-header">
+            <h1><i class="fas fa-plus-circle"></i> Thêm Xe Mới</h1>
+            <p>Đăng ký thêm phương tiện mới vào tài khoản của bạn</p>
+        </div>
+        
+        <div class="add-vehicle-form">
+            <form id="addVehicleForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label for="licensePlate">Biển số xe <span style="color: red;">*</span></label>
+                    <input type="text" id="licensePlate" name="license_plate" class="form-control" 
+                           placeholder="VD: 51F12345, 29A12345" required maxlength="10">
+                    <div class="help-text">Nhập biển số xe theo định dạng Việt Nam</div>
+                    <div class="invalid-feedback" id="licensePlateError"></div>
+                    <div class="valid-feedback" id="licensePlateSuccess"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="vehicleType">Loại xe <span style="color: red;">*</span></label>
+                    <select id="vehicleType" name="vehicle_type" class="form-control" required>
+                        <option value="">-- Chọn loại xe --</option>
+                        <option value="motorbike">Xe máy</option>
+                        <option value="car">Ô tô</option>
+                        <option value="bicycle">Xe đạp</option>
+                        <option value="truck">Xe tải</option>
+                    </select>
+                    <div class="invalid-feedback" id="vehicleTypeError"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="vehicleImage">Hình ảnh xe (tùy chọn)</label>
+                    <div class="file-upload" onclick="document.getElementById('vehicleImage').click()">
+                        <input type="file" id="vehicleImage" name="vehicle_image" accept="image/*">
+                        <div class="file-upload-content">
+                            <i class="fas fa-cloud-upload-alt file-upload-icon"></i>
+                            <div class="file-upload-text">Nhấp để chọn hình ảnh</div>
+                            <div class="file-upload-subtext">hoặc kéo thả file vào đây</div>
+                            <div class="file-upload-subtext">Hỗ trợ: JPG, PNG, GIF (tối đa 5MB)</div>
+                        </div>
+                    </div>
+                    <div class="image-preview" id="imagePreview">
+                        <img id="previewImg" src="" alt="Preview">
+                    </div>
+                </div>
+                
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="spinner"></div>
+                    <span style="margin-left: 1rem;">Đang xử lý...</span>
+                </div>
+                
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    <i class="fas fa-plus"></i> Thêm xe
+                </button>
+            </form>
+        </div>
+    </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('addVehicleForm');
+    const licensePlateInput = document.getElementById('licensePlate');
+    const vehicleImageInput = document.getElementById('vehicleImage');
+    const fileUpload = document.querySelector('.file-upload');
+    const imagePreview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+    const submitBtn = document.getElementById('submitBtn');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    
+    let isLicensePlateValid = false;
+    
+    // License plate validation
+    licensePlateInput.addEventListener('blur', async function() {
+        const licensePlate = this.value.trim().toUpperCase();
+        
+        if (!licensePlate) {
+            clearValidation('licensePlate');
+            return;
+        }
+        
+        // Client-side format validation
+        const licensePattern = /^[0-9]{2}[A-Z]{1,2}[0-9]{4,5}$/;
+        if (!licensePattern.test(licensePlate)) {
+            showError('licensePlate', 'Biển số xe không đúng định dạng (VD: 51F12345, 29A12345)');
+            isLicensePlateValid = false;
+            updateSubmitButton();
+            return;
+        }
+          // Server-side validation
+        try {
+            const response = await fetch('/webuser/vehicles/check-license/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    license_plate: licensePlate
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                showError('licensePlate', data.error);
+                isLicensePlateValid = false;
+            } else if (data.exists) {
+                showError('licensePlate', data.message);
+                isLicensePlateValid = false;
+            } else {
+                showSuccess('licensePlate', data.message);
+                isLicensePlateValid = true;
+            }
+        } catch (error) {
+            console.error('Error checking license plate:', error);
+            showError('licensePlate', 'Lỗi kết nối. Vui lòng thử lại.');
+            isLicensePlateValid = false;
+        }
+        
+        updateSubmitButton();
+    });
+    
+    // Convert license plate to uppercase
+    licensePlateInput.addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+    
+    // File upload handling
+    vehicleImageInput.addEventListener('change', function() {
+        handleFileSelect(this.files[0]);
+    });
+    
+    // Drag and drop
+    fileUpload.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('dragover');
+    });
+    
+    fileUpload.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+    });
+    
+    fileUpload.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            vehicleImageInput.files = files;
+            handleFileSelect(files[0]);
+        }
+    });
+    
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        if (!validateForm()) {
+            return;
+        }
+        
+        showLoading(true);
+        
+        const formData = new FormData(form);
+        
+        try {
+            const response = await fetch('', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            });
+            
+            const data = await response.json();
+            
+            showLoading(false);
+            
+            if (response.ok) {
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Thành công!',
+                    text: data.message,
+                    confirmButtonColor: '#28a745'
+                });
+                window.location.href = '{% url "vehicle_management" %}';
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi!',
+                    text: data.error,
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+        } catch (error) {
+            showLoading(false);
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi!',
+                text: 'Có lỗi xảy ra. Vui lòng thử lại.',
+                confirmButtonColor: '#dc3545'
+            });
+            console.error('Error:', error);
+        }
+    });
+    
+    function handleFileSelect(file) {
+        if (!file) return;
+        
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi!',
+                text: 'Vui lòng chọn file hình ảnh.',
+                confirmButtonColor: '#dc3545'
+            });
+            return;
+        }
+        
+        // Validate file size (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi!',
+                text: 'File quá lớn. Vui lòng chọn file nhỏ hơn 5MB.',
+                confirmButtonColor: '#dc3545'
+            });
+            return;
+        }
+        
+        // Show preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            imagePreview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    function showError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        const errorDiv = document.getElementById(fieldId + 'Error');
+        const successDiv = document.getElementById(fieldId + 'Success');
+        
+        field.classList.remove('is-valid');
+        field.classList.add('is-invalid');
+        errorDiv.textContent = message;
+        if (successDiv) successDiv.textContent = '';
+    }
+    
+    function showSuccess(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        const errorDiv = document.getElementById(fieldId + 'Error');
+        const successDiv = document.getElementById(fieldId + 'Success');
+        
+        field.classList.remove('is-invalid');
+        field.classList.add('is-valid');
+        if (successDiv) successDiv.textContent = message;
+        errorDiv.textContent = '';
+    }
+    
+    function clearValidation(fieldId) {
+        const field = document.getElementById(fieldId);
+        const errorDiv = document.getElementById(fieldId + 'Error');
+        const successDiv = document.getElementById(fieldId + 'Success');
+        
+        field.classList.remove('is-invalid', 'is-valid');
+        errorDiv.textContent = '';
+        if (successDiv) successDiv.textContent = '';
+    }
+    
+    function validateForm() {
+        const licensePlate = licensePlateInput.value.trim();
+        const vehicleType = document.getElementById('vehicleType').value;
+        
+        if (!licensePlate) {
+            showError('licensePlate', 'Vui lòng nhập biển số xe');
+            return false;
+        }
+        
+        if (!isLicensePlateValid) {
+            showError('licensePlate', 'Biển số xe chưa hợp lệ');
+            return false;
+        }
+        
+        if (!vehicleType) {
+            showError('vehicleType', 'Vui lòng chọn loại xe');
+            return false;
+        }
+        
+        return true;
+    }
+    
+    function updateSubmitButton() {
+        const licensePlate = licensePlateInput.value.trim();
+        const vehicleType = document.getElementById('vehicleType').value;
+        
+        submitBtn.disabled = !licensePlate || !vehicleType || !isLicensePlateValid;
+    }
+    
+    function showLoading(show) {
+        if (show) {
+            loadingSpinner.style.display = 'flex';
+            submitBtn.disabled = true;
+        } else {
+            loadingSpinner.style.display = 'none';
+            updateSubmitButton();
+        }
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Update submit button state on form changes
+    document.getElementById('vehicleType').addEventListener('change', updateSubmitButton);
+    licensePlateInput.addEventListener('input', function() {
+        isLicensePlateValid = false;
+        updateSubmitButton();
+    });
+    
+    // Initial button state
+    updateSubmitButton();
+});
+</script>
+{% endblock %}

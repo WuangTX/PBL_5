@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'webuser.history.apps.HistoryConfig', 
     'webuser.payment.apps.PaymentConfig',
     'webuser.register.apps.RegisterConfig',
+    'webuser.vehicle_management.apps.VehicleManagementConfig',  # Thêm vehicle management
 ]
 
 MIDDLEWARE = [

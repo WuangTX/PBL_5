@@ -786,11 +786,29 @@
     });
 
     document.getElementById('openGate').addEventListener('click', function() {
-        // Logic for opening gate
+        fetch("http://127.0.0.1:5000/open_gate", {
+            method: "POST"
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+        })
+        .catch(error => {
+            alert("Lỗi kết nối đến server: " + error);
+        });
     });
 
     document.getElementById('closeGate').addEventListener('click', function() {
-        // Logic for closing gate
+        fetch("http://127.0.0.1:5000/close_gate", {
+            method: "POST"
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+        })
+        .catch(error => {
+            alert("Lỗi kết nối đến server: " + error);
+        });
     });
 </script>
 {% endblock %}

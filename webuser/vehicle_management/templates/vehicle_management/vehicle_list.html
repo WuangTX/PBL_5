@@ -1,0 +1,344 @@
+{% extends "app/base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block vehicle-css %}
+<style>
+    .vehicle-management {
+        background: linear-gradient(135deg,rgb(255, 255, 255) 0%,rgb(255, 255, 255) 100%);
+        min-height: 100vh;
+    }
+    
+    .vehicle-container {
+        width: 100%;
+        margin: 0 auto;
+    }
+    
+    .page-header {
+        text-align: center;
+        margin-bottom: 3rem;
+        color: white;
+    }
+    
+    .page-header h1 {
+        font-size: 2.78rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .vehicle-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding: 0 1rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .add-vehicle-btn {
+        background: #28a745;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .add-vehicle-btn:hover {
+        background: #218838;
+        transform: translateY(-2px);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .vehicle-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        justify-content: center;
+        margin-bottom: 2rem;
+    }
+    
+    .vehicle-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .vehicle-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .vehicle-image {
+        width: 100%;
+        height: 200px;
+        border-radius: 8px;
+        object-fit: cover;
+        margin-bottom: 1rem;
+    }
+    
+    .vehicle-placeholder {
+        width: 100%;
+        height: 200px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        color: #6c757d;
+        font-size: 3rem;
+    }
+    
+    .vehicle-info h3 {
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+    
+    .vehicle-type {
+        background: #e3f2fd;
+        color: #1976d2;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        display: inline-block;
+        margin-bottom: 1rem;
+    }
+    
+    .vehicle-status {
+        margin-bottom: 1rem;
+    }
+    
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        display: inline-block;
+        margin-bottom: 0.5rem;
+    }
+    
+    .status-parked {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-available {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .parking-details {
+        font-size: 0.875rem;
+        color: #6c757d;
+        line-height: 1.5;
+    }
+    
+    .vehicle-actions-card {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .btn-detail {
+        flex: 1;
+        background: #007bff;
+        color: white;
+        padding: 0.5rem 1rem;
+        text-decoration: none;
+        border-radius: 6px;
+        text-align: center;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .btn-detail:hover {
+        background: #0056b3;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .no-vehicles {
+        text-align: center;
+        padding: 3rem;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .no-vehicles i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+    
+    .no-vehicles h3 {
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+    
+    .no-vehicles p {
+        color: #adb5bd;
+        margin-bottom: 2rem;
+    }
+    
+    .loading-spinner {
+        display: none;
+        justify-content: center;
+        align-items: center;
+        padding: 1rem;
+    }
+    
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 768px) {
+        .vehicle-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .vehicle-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .page-header h1 {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block vehicle-content %}
+<section class="vehicle-management">
+    <div class="vehicle-container">
+        <div class="page-header">
+            <h1><i class="fas fa-car"></i> Quản Lý Xe</h1>
+            <p>Quản lý tất cả các phương tiện của bạn</p>
+        </div>
+        
+        <div class="vehicle-actions">
+            <div>
+                <h2 style="color: white; margin: 0;">Xe của tôi ({{ vehicles.count }} xe)</h2>
+            </div>
+            <a href="{% url 'add_vehicle' %}" class="add-vehicle-btn">
+                <i class="fas fa-plus"></i> Thêm xe mới
+            </a>
+        </div>
+        
+        {% if vehicles %}
+        <div class="vehicle-grid" id="vehicleGrid">
+            {% for vehicle in vehicles %}
+            <div class="vehicle-card" data-vehicle-id="{{ vehicle.id }}">
+                {% if vehicle.image_path %}
+                <img src="{{ MEDIA_URL }}{{ vehicle.image_path }}" alt="{{ vehicle.license_plate }}" class="vehicle-image">
+                {% else %}
+                <div class="vehicle-placeholder">
+                    <i class="fas fa-car"></i>
+                </div>
+                {% endif %}
+                
+                <div class="vehicle-info">
+                    <h3>{{ vehicle.license_plate }}</h3>
+                    <span class="vehicle-type">{{ vehicle.get_vehicle_type_display }}</span>
+                    
+                    <div class="vehicle-status">
+                        <span class="status-badge" id="status-{{ vehicle.id }}">
+                            <i class="fas fa-spinner fa-spin"></i> Đang tải...
+                        <div class="parking-details" id="details-{{ vehicle.id }}"></div>
+                    </div>
+                </div>
+                
+                <div class="vehicle-actions-card">
+                    <a href="{% url 'vehicle_detail' vehicle.id %}" class="btn-detail">
+                        <i class="fas fa-info-circle"></i> Chi tiết & Lịch sử
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-vehicles">
+            <i class="fas fa-car"></i>
+            <h3>Chưa có xe nào</h3>
+            <p>Bạn chưa đăng ký xe nào. Hãy thêm xe đầu tiên của bạn!</p>
+            <a href="{% url 'add_vehicle' %}" class="add-vehicle-btn">
+                 Thêm xe đầu tiên
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load status for each vehicle
+    {% for vehicle in vehicles %}
+    loadVehicleStatus('{{ vehicle.id }}');
+    {% endfor %}
+});
+
+function loadVehicleStatus(vehicleId) {
+    fetch(`/webuser/vehicles/status/${vehicleId}/`)
+        .then(response => response.json())
+        .then(data => {
+            const statusElement = document.getElementById(`status-${vehicleId}`);
+            const detailsElement = document.getElementById(`details-${vehicleId}`);
+            
+            if (data.status === 'parked') {
+                statusElement.className = 'status-badge status-parked';
+                statusElement.innerHTML = '<i class="fas fa-parking"></i> Đang đỗ';
+                
+                detailsElement.innerHTML = `
+                    <strong>Vị trí:</strong> ${data.parking_space}<br>
+                    <strong>Thời gian vào:</strong> ${data.entry_time}<br>
+                    <strong>Đã đỗ:</strong> ${data.duration}
+                `;
+            } else {
+                statusElement.className = 'status-badge status-available';
+                statusElement.innerHTML = '<i class="fas fa-check-circle"></i> Không đỗ trong bãi';
+                
+                detailsElement.innerHTML = '<em>Xe hiện không đỗ trong bãi đỗ</em>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading vehicle status:', error);
+            const statusElement = document.getElementById(`status-${vehicleId}`);
+            statusElement.className = 'status-badge';
+            statusElement.style.background = '#f8d7da';
+            statusElement.style.color = '#721c24';
+            statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Lỗi tải thông tin';
+        });
+}
+
+// Auto-refresh status every 30 seconds
+setInterval(function() {
+    {% for vehicle in vehicles %}
+    loadVehicleStatus('{{ vehicle.id }}');
+    {% endfor %}
+}, 30000);
+</script>
+{% endblock %}

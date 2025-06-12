@@ -112,6 +112,16 @@ class Vehicle(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vehicles')
     created_at = models.DateTimeField(default=now, editable=False)
 
+    def get_vehicle_type_display(self):
+        """Hiển thị tên loại xe bằng tiếng Việt"""
+        type_mapping = {
+            'motorbike': 'Xe máy',
+            'car': 'Ô tô',
+            'bicycle': 'Xe đạp',
+            'truck': 'Xe tải'
+        }
+        return type_mapping.get(self.vehicle_type, self.vehicle_type)
+
     def __str__(self):
         return f"{self.license_plate} - {self.vehicle_type}"
     

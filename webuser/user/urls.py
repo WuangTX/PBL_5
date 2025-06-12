@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
 from webuser.history import views as history_views
 from webuser.payment import views as payment_views
@@ -12,7 +12,8 @@ urlpatterns = [
     path('register/', register_views.register_view, name='register'),
     path('logout/', views.logout_view, name='logout'),
     path('about/', views.about_view, name='about'),
-    path('registerVehicle/', register_views.register_vehicle, name='registerVehicle'),
+    path('vehicles/', include('webuser.vehicle_management.urls')), # quản lý xe
+    path('check-user-exists/', register_views.check_user_exists, name='check_user_exists'), # api kiểm tra email/phone đã tồn tại
     path('account/', views.account_view, name='account'),
     path('deposit_money/', views.deposit_money, name='deposit_money'), # api nạp tiền bank
     path('payment/vehicle-details/', payment_views.vehicle_details_api, name='vehicle_details_api'), # api lấy thông tin xe

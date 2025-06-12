@@ -145,7 +145,8 @@ body {
     transition: var(--transition);
 }
 
-.input-icon input[type="text"] {
+.input-icon input[type="text"],
+.input-icon select {
     width: 100%;
     padding: 12px 15px 12px 45px;
     border: 1px solid var(--border-color);
@@ -156,7 +157,8 @@ body {
     transition: var(--transition);
 }
 
-.input-icon input[type="text"]:focus {
+.input-icon input[type="text"]:focus,
+.input-icon select:focus {
     border-color: var(--primary-color);
     background-color: var(--bg-color);
     box-shadow: 0 0 8px rgba(52, 152, 219, 0.3);
@@ -190,6 +192,7 @@ body {
 .file-upload-wrapper i {
     font-size: 1.2rem;
     color: var(--text-lighter);
+    margin-right: 15px;
     transition: var(--transition);
 }
 
